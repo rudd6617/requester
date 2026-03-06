@@ -81,7 +81,7 @@ export default function TeamManage() {
 
   return (
     <>
-      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <Title level={3} style={{ margin: 0 }}>
           團隊管理
         </Title>

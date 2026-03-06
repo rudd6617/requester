@@ -67,8 +67,7 @@ export function useUpdateRequest() {
 export function useKanbanCards(teamId: number | null) {
   return useQuery({
     queryKey: ["kanban", teamId],
-    queryFn: () => api.fetchKanbanCards(teamId!),
-    enabled: !!teamId,
+    queryFn: () => api.fetchKanbanCards(teamId),
   });
 }
 
@@ -130,5 +129,24 @@ export function useMoveKanbanCard() {
       }
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ["kanban"] }),
+  });
+}
+
+// --- Comments ---
+
+export function useComments(requestId: number | null) {
+  return useQuery({
+    queryKey: ["comments", requestId],
+    queryFn: () => api.fetchComments(requestId!),
+    enabled: !!requestId,
+  });
+}
+
+export function useCreateComment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.createComment,
+    onSuccess: (_data, variables) =>
+      qc.invalidateQueries({ queryKey: ["comments", variables.request_id] }),
   });
 }

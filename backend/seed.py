@@ -37,7 +37,7 @@ requests_data = [
         "requester": "Alice",
         "module": "Reports",
         "priority": "high",
-        "status": "approved",
+        "status": "in_progress",
         "start_date": today - timedelta(days=3),
         "due_date": today + timedelta(days=11),
     },
@@ -48,7 +48,7 @@ requests_data = [
         "requester": "Bob",
         "module": "Auth",
         "priority": "critical",
-        "status": "approved",
+        "status": "in_progress",
         "start_date": today - timedelta(days=1),
         "due_date": today + timedelta(days=4),
     },
@@ -81,7 +81,7 @@ requests_data = [
         "requester": "Eve",
         "module": "Performance",
         "priority": "high",
-        "status": "approved",
+        "status": "in_progress",
         "start_date": today + timedelta(days=2),
         "due_date": today + timedelta(days=16),
     },
@@ -100,8 +100,8 @@ for r in requests_data:
         existing.due_date = r.get("due_date")
         reqs.append(existing)
 
-# Kanban cards for approved requests
-approved = [r for r in reqs if r.status == "approved"]
+# Kanban cards for in_progress requests
+approved = [r for r in reqs if r.status == "in_progress"]
 for i, req in enumerate(approved):
     existing = db.query(KanbanCard).filter(KanbanCard.request_id == req.id).first()
     if not existing:

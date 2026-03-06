@@ -1,14 +1,24 @@
 import axios from "axios";
 import type {
+  Comment,
   KanbanBoard,
   KanbanCard,
   Request,
   RequestListResponse,
   Team,
+  User,
 } from "../types";
 
 const api = axios.create({
   baseURL: "http://localhost:8000/api",
+});
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 // --- Teams ---
@@ -39,9 +49,9 @@ export const updateRequest = (id: number, data: Partial<Request>) =>
 
 // --- Kanban ---
 
-export const fetchKanbanCards = (teamId: number) =>
+export const fetchKanbanCards = (teamId: number | null) =>
   api
-    .get<KanbanBoard>("/kanban/cards", { params: { team_id: teamId } })
+    .get<KanbanBoard>("/kanban/cards", { params: teamId != null ? { team_id: teamId } : {} })
     .then((r) => r.data);
 
 export const createKanbanCard = (data: {
@@ -59,3 +69,25 @@ export const moveKanbanCard = (
   id: number,
   data: { stage: string; position: number }
 ) => api.patch<KanbanCard>(`/kanban/cards/${id}/move`, data).then((r) => r.data);
+
+// --- Auth ---
+
+export const login = (data: { username: string; password: string }) =>
+  api
+    .post<{ access_token: string; token_type: string }>("/auth/login", data)
+    .then((r) => r.data);
+
+export const fetchMe = () => api.get<User>("/auth/me").then((r) => r.data);
+
+// --- Comments ---
+
+export const fetchComments = (requestId: number) =>
+  api
+    .get<Comment[]>("/comments", { params: { request_id: requestId } })
+    .then((r) => r.data);
+
+export const createComment = (data: {
+  request_id: number;
+  content: string;
+  author?: string;
+}) => api.post<Comment>("/comments", data).then((r) => r.data);

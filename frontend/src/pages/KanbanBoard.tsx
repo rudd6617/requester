@@ -2,20 +2,23 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  TouchSensor,
   closestCorners,
+  defaultDropAnimationSideEffects,
   useSensor,
   useSensors,
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { BarChartOutlined, ProjectOutlined } from "@ant-design/icons";
-import { Card, DatePicker, Divider, Form, Input, message, Modal, Segmented, Select, Spin, Typography } from "antd";
+import { Button, Card, DatePicker, Divider, Drawer, Form, Input, message, Segmented, Select, Spin, Typography } from "antd";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import GanttView from "../components/GanttView";
 import KanbanColumn from "../components/KanbanColumn";
 import PriorityBadge from "../components/PriorityBadge";
+import CommentSection from "../components/CommentSection";
 import {
   useKanbanCards,
   useMoveKanbanCard,
@@ -45,6 +48,12 @@ const priorityOptions = [
 ];
 
 type ViewMode = "kanban" | "gantt";
+
+const dropAnimation = {
+  sideEffects: defaultDropAnimationSideEffects({
+    styles: { active: { opacity: "0.4" } },
+  }),
+};
 
 export default function KanbanBoard() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -90,7 +99,10 @@ export default function KanbanBoard() {
     }
   }, [editingCard, cardForm, requestForm]);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
+  );
 
   const findCardStage = (cardId: number): Stage | null => {
     if (!board) return null;
@@ -183,25 +195,28 @@ export default function KanbanBoard() {
     setSearchParams(params);
   };
 
-  const handleTeamChange = (val: number) => {
-    const params: Record<string, string> = { team_id: String(val) };
+  const handleTeamChange = (val: string | number) => {
+    const v = String(val);
+    const params: Record<string, string> = {};
+    if (v !== "all") params.team_id = v;
     if (viewMode !== "kanban") params.view = viewMode;
     setSearchParams(params);
   };
 
+  const teamOptions = useMemo(
+    () => [
+      { value: "all", label: "全部" },
+      ...(teams?.map((t) => ({ value: String(t.id), label: t.name })) || []),
+    ],
+    [teams]
+  );
+
   return (
     <>
-      <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 16 }}>
+      <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 8 }}>
         <Title level={3} style={{ margin: 0 }}>
           開發看板
         </Title>
-        <Select
-          placeholder="選擇團隊"
-          style={{ width: 200 }}
-          value={teamId}
-          onChange={handleTeamChange}
-          options={teams?.map((t) => ({ value: t.id, label: t.name }))}
-        />
         <Segmented
           value={viewMode}
           onChange={(val) => handleViewChange(val as ViewMode)}
@@ -211,19 +226,24 @@ export default function KanbanBoard() {
           ]}
         />
       </div>
+      <div style={{ marginBottom: 16, padding: "8px 12px", background: "#f5f5f5", borderRadius: 8 }}>
+        <Segmented
+          value={teamId ? String(teamId) : "all"}
+          onChange={handleTeamChange}
+          options={teamOptions}
+        />
+      </div>
 
-      {!teamId && <Text type="secondary">請選擇團隊以檢視看板。</Text>}
+      {isLoading && <Spin />}
 
-      {teamId && isLoading && <Spin />}
-
-      {teamId && board && viewMode === "kanban" && (
+      {board && viewMode === "kanban" && (
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div style={{ display: "flex", gap: 16, overflowX: "auto" }}>
+          <div style={{ display: "flex", gap: 16, overflowX: "auto", height: "calc(100vh - 160px)" }}>
             {STAGES.map((stage) => (
               <KanbanColumn
                 key={stage}
@@ -233,9 +253,9 @@ export default function KanbanBoard() {
               />
             ))}
           </div>
-          <DragOverlay>
+          <DragOverlay dropAnimation={dropAnimation}>
             {activeCard && (
-              <Card size="small" style={{ width: 260, opacity: 0.9 }}>
+              <Card size="small" style={{ width: 260, opacity: 0.9, boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
                 <Text strong>
                   #{activeCard.request.id} {activeCard.request.title}
                 </Text>
@@ -248,30 +268,28 @@ export default function KanbanBoard() {
         </DndContext>
       )}
 
-      {teamId && board && viewMode === "gantt" && (
+      {board && viewMode === "gantt" && (
         <GanttView requests={ganttRequests} />
       )}
 
-      <Modal
-        title="編輯卡片"
+      <Drawer
+        title={editingCard ? `#${editingCard.request.id} ${editingCard.request.title}` : ""}
         open={!!editingCard}
-        onOk={handleEditSubmit}
-        onCancel={() => setEditingCard(null)}
-        okText="儲存"
-        cancelText="取消"
-        confirmLoading={saving}
-        width={640}
+        onClose={() => setEditingCard(null)}
+        width={560}
       >
         {editingCard && (
           <>
             <Text type="secondary" strong>卡片資訊</Text>
             <Form form={cardForm} layout="vertical" style={{ marginTop: 8 }}>
-              <Form.Item name="assignee" label="負責人">
-                <Input />
-              </Form.Item>
-              <Form.Item name="stage" label="階段">
-                <Select options={stageOptions} />
-              </Form.Item>
+              <div style={{ display: "flex", gap: 16 }}>
+                <Form.Item name="assignee" label="負責人" style={{ flex: 1 }}>
+                  <Input />
+                </Form.Item>
+                <Form.Item name="stage" label="階段" style={{ flex: 1 }}>
+                  <Select options={stageOptions} />
+                </Form.Item>
+              </div>
             </Form>
             <Divider />
             <Text type="secondary" strong>需求內容</Text>
@@ -279,15 +297,14 @@ export default function KanbanBoard() {
               <Form.Item name="title" label="標題" rules={[{ required: true, message: "請輸入標題" }]}>
                 <Input />
               </Form.Item>
-              <Form.Item name="requester" label="提出人" rules={[{ required: true, message: "請輸入提出人" }]}>
-                <Input />
-              </Form.Item>
-              <Form.Item name="module" label="模組">
-                <Input />
-              </Form.Item>
-              <Form.Item name="priority" label="優先級">
-                <Select options={priorityOptions} />
-              </Form.Item>
+              <div style={{ display: "flex", gap: 16 }}>
+                <Form.Item name="requester" label="提出人" rules={[{ required: true, message: "請輸入提出人" }]} style={{ flex: 1 }}>
+                  <Input />
+                </Form.Item>
+                <Form.Item name="priority" label="優先級" style={{ flex: 1 }}>
+                  <Select options={priorityOptions} />
+                </Form.Item>
+              </div>
               <div style={{ display: "flex", gap: 16 }}>
                 <Form.Item name="start_date" label="開始日" style={{ flex: 1 }}>
                   <DatePicker style={{ width: "100%" }} />
@@ -300,12 +317,20 @@ export default function KanbanBoard() {
                 <TextArea rows={3} />
               </Form.Item>
               <Form.Item name="business_impact" label="業務影響">
-                <TextArea rows={2} />
+                <TextArea rows={3} />
               </Form.Item>
             </Form>
+
+            <Button type="primary" onClick={handleEditSubmit} loading={saving}>
+              儲存
+            </Button>
+
+            <Divider />
+            <Title level={5} style={{ marginBottom: 12 }}>評論</Title>
+            <CommentSection requestId={editingCard.request.id} />
           </>
         )}
-      </Modal>
+      </Drawer>
     </>
   );
 }

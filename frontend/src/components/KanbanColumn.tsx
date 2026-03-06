@@ -13,13 +13,6 @@ const stageLabels: Record<Stage, string> = {
   done: "已完成",
 };
 
-const stageColors: Record<Stage, string> = {
-  todo: "#e6f7ff",
-  in_progress: "#fff7e6",
-  review: "#f6ffed",
-  done: "#f9f0ff",
-};
-
 interface Props {
   stage: Stage;
   cards: KanbanCardType[];
@@ -35,23 +28,28 @@ export default function KanbanColumn({ stage, cards, onEditCard }: Props) {
       style={{
         flex: 1,
         minWidth: 260,
-        background: isOver ? "#f0f0f0" : stageColors[stage],
+        background: isOver ? "#ebecf0" : "#f4f5f7",
+        border: "1px solid #dfe1e6",
         borderRadius: 8,
         padding: 12,
-        minHeight: 400,
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
       }}
     >
-      <Title level={5} style={{ marginBottom: 12 }}>
+      <Title level={5} style={{ margin: "0 0 12px 0", flexShrink: 0 }}>
         {stageLabels[stage]} ({cards.length})
       </Title>
-      <SortableContext
-        items={cards.map((c) => c.id)}
-        strategy={verticalListSortingStrategy}
-      >
-        {cards.map((card) => (
-          <KanbanCard key={card.id} card={card} onEdit={() => onEditCard(card)} />
-        ))}
-      </SortableContext>
+      <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+        <SortableContext
+          items={cards.map((c) => c.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {cards.map((card) => (
+            <KanbanCard key={card.id} card={card} onEdit={() => onEditCard(card)} />
+          ))}
+        </SortableContext>
+      </div>
     </div>
   );
 }

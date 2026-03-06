@@ -15,9 +15,10 @@ class Priority(str, Enum):
 class Status(str, Enum):
     new = "new"
     triage = "triage"
-    approved = "approved"
-    rejected = "rejected"
-    postponed = "postponed"
+    in_progress = "in_progress"
+    done = "done"
+    closed = "closed"
+    cancelled = "cancelled"
 
 
 class Stage(str, Enum):
@@ -96,6 +97,57 @@ class RequestListOut(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+# --- KanbanCard ---
+
+
+# --- User / Auth ---
+
+
+class UserCreate(BaseModel):
+    username: str
+    display_name: str
+    password: str
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class TokenOut(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class UserOut(BaseModel):
+    id: int
+    username: str
+    display_name: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# --- Comment ---
+
+
+class CommentCreate(BaseModel):
+    request_id: int
+    content: str
+    author: str = ""
+
+
+class CommentOut(BaseModel):
+    id: int
+    request_id: int
+    author: str
+    user_id: Optional[int] = None
+    content: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 # --- KanbanCard ---

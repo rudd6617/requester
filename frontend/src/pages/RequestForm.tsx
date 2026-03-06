@@ -1,4 +1,4 @@
-import { Button, Card, DatePicker, Form, Input, message, Select, Typography } from "antd";
+import { Button, Card, Form, Input, message, Select, Typography } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useCreateRequest } from "../hooks/useRequests";
 
@@ -11,12 +11,7 @@ export default function RequestForm() {
   const createRequest = useCreateRequest();
 
   const onFinish = (values: Record<string, any>) => {
-    const payload = {
-      ...values,
-      start_date: values.start_date?.format("YYYY-MM-DD") || null,
-      due_date: values.due_date?.format("YYYY-MM-DD") || null,
-    };
-    createRequest.mutate(payload, {
+    createRequest.mutate(values, {
       onSuccess: () => {
         message.success("需求已提交");
         navigate("/backlog");
@@ -27,7 +22,7 @@ export default function RequestForm() {
 
   return (
     <Card style={{ maxWidth: 720, margin: "0 auto" }}>
-      <Title level={3}>提交新需求</Title>
+      <Title level={3} style={{ marginTop: 0 }}>需求單</Title>
       <Form form={form} layout="vertical" onFinish={onFinish}>
         <div style={{ display: "flex", gap: 16 }}>
           <Form.Item name="title" label="標題" rules={[{ required: true, message: "請輸入標題" }]} style={{ flex: 1 }}>
@@ -47,16 +42,11 @@ export default function RequestForm() {
         <Form.Item name="requester" label="提出人" rules={[{ required: true, message: "請輸入提出人" }]}>
           <Input />
         </Form.Item>
-        <div style={{ display: "flex", gap: 16 }}>
-          <Form.Item name="start_date" label="開始日" style={{ flex: 1 }}>
-            <DatePicker style={{ width: "100%" }} />
-          </Form.Item>
-          <Form.Item name="due_date" label="截止日" style={{ flex: 1 }}>
-            <DatePicker style={{ width: "100%" }} />
-          </Form.Item>
-        </div>
         <Form.Item name="description" label="描述">
-          <TextArea rows={4} />
+          <TextArea rows={3} />
+        </Form.Item>
+        <Form.Item name="business_impact" label="業務影響">
+          <TextArea rows={3} />
         </Form.Item>
         <Form.Item>
           <Button type="primary" htmlType="submit" loading={createRequest.isPending}>

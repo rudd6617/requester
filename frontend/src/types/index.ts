@@ -1,5 +1,5 @@
 export type Priority = "critical" | "high" | "medium" | "low";
-export type Status = "new" | "triage" | "approved" | "rejected" | "postponed";
+export type Status = "new" | "triage" | "in_progress" | "done" | "closed" | "cancelled";
 export type Stage = "todo" | "in_progress" | "review" | "done";
 
 export interface Team {
@@ -48,4 +48,20 @@ export interface KanbanBoard {
   in_progress: KanbanCard[];
   review: KanbanCard[];
   done: KanbanCard[];
+}
+
+export interface User {
+  id: number;
+  username: string;
+  display_name: string;
+  created_at: string;
+}
+
+export interface Comment {
+  id: number;
+  request_id: number;
+  author: string;
+  user_id: number | null;
+  content: string;
+  created_at: string;
 }

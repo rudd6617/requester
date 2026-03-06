@@ -1,7 +1,24 @@
-import { Button, DatePicker, Form, Input, message, Modal, Select, Space, Table, Typography } from "antd";
+import {
+  Button,
+  DatePicker,
+  Divider,
+  Drawer,
+  Form,
+  Input,
+  message,
+  Modal,
+  Select,
+  Space,
+  Table,
+  Typography,
+} from "antd";
 import type { TablePaginationConfig } from "antd/es/table";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
+import CommentSection from "../components/CommentSection";
+import PriorityBadge from "../components/PriorityBadge";
+import StatusBadge from "../components/StatusBadge";
+import { useAuth } from "../contexts/AuthContext";
 import {
   useCreateKanbanCard,
   useRequests,
@@ -9,13 +26,29 @@ import {
   useUpdateRequest,
 } from "../hooks/useRequests";
 import type { Priority, Request, Status } from "../types";
-import PriorityBadge from "../components/PriorityBadge";
-import StatusBadge from "../components/StatusBadge";
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 const { TextArea } = Input;
 
+const statusOptions = [
+  { value: "new", label: "新需求" },
+  { value: "triage", label: "評估中" },
+  { value: "in_progress", label: "進行中" },
+  { value: "done", label: "已完成" },
+  { value: "closed", label: "已關閉" },
+  { value: "cancelled", label: "已取消" },
+];
+
+const priorityOptions = [
+  { value: "critical", label: "緊急" },
+  { value: "high", label: "高" },
+  { value: "medium", label: "中" },
+  { value: "low", label: "低" },
+];
+
 export default function Backlog() {
+  const { isRD } = useAuth();
+
   const [filters, setFilters] = useState<Record<string, string | number>>({
     page: 1,
     page_size: 20,
@@ -27,52 +60,62 @@ export default function Backlog() {
   const { data: teams } = useTeams();
   const createCard = useCreateKanbanCard();
 
+  // Detail drawer
+  const [detailRequest, setDetailRequest] = useState<Request | null>(null);
+  const [drawerForm] = Form.useForm();
+
+  // Assign modal
   const [assignModal, setAssignModal] = useState<Request | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
-  const [editingRequest, setEditingRequest] = useState<Request | null>(null);
-  const [editForm] = Form.useForm();
 
   useEffect(() => {
-    if (editingRequest) {
-      editForm.setFieldsValue({
-        title: editingRequest.title,
-        description: editingRequest.description,
-        business_impact: editingRequest.business_impact,
-        requester: editingRequest.requester,
-        module: editingRequest.module,
-        priority: editingRequest.priority,
-        start_date: editingRequest.start_date ? dayjs(editingRequest.start_date) : null,
-        due_date: editingRequest.due_date ? dayjs(editingRequest.due_date) : null,
+    if (detailRequest) {
+      drawerForm.setFieldsValue({
+        title: detailRequest.title,
+        description: detailRequest.description,
+        business_impact: detailRequest.business_impact,
+        requester: detailRequest.requester,
+        module: detailRequest.module,
+        priority: detailRequest.priority,
+        start_date: detailRequest.start_date ? dayjs(detailRequest.start_date) : null,
+        due_date: detailRequest.due_date ? dayjs(detailRequest.due_date) : null,
       });
     }
-  }, [editingRequest, editForm]);
+  }, [detailRequest, drawerForm]);
 
-  const handleStatusChange = (id: number, status: Status) => {
-    updateRequest.mutate(
-      { id, status },
-      { onError: () => message.error("狀態更新失敗") }
-    );
-  };
-
-  const handleEditSubmit = () => {
-    if (!editingRequest) return;
-    editForm.validateFields().then((values) => {
+  const handleUpdate = () => {
+    if (!detailRequest) return;
+    drawerForm.validateFields().then((values) => {
       const payload = {
         ...values,
         start_date: values.start_date?.format("YYYY-MM-DD") || null,
         due_date: values.due_date?.format("YYYY-MM-DD") || null,
       };
       updateRequest.mutate(
-        { id: editingRequest.id, ...payload },
+        { id: detailRequest.id, ...payload },
         {
           onSuccess: () => {
             message.success("需求已更新");
-            setEditingRequest(null);
+            setDetailRequest((prev) => (prev ? { ...prev, ...payload } : null));
           },
           onError: () => message.error("更新失敗"),
         }
       );
     });
+  };
+
+  const handleStatusChange = (id: number, status: Status) => {
+    updateRequest.mutate(
+      { id, status },
+      {
+        onSuccess: () => {
+          if (detailRequest?.id === id) {
+            setDetailRequest((prev) => (prev ? { ...prev, status } : null));
+          }
+        },
+        onError: () => message.error("狀態更新失敗"),
+      }
+    );
   };
 
   const handleAssign = () => {
@@ -91,53 +134,40 @@ export default function Backlog() {
     );
   };
 
-  const handleTableChange = (
-    pagination: TablePaginationConfig,
-    tableFilters: Record<string, (string | number | boolean)[] | null>
-  ) => {
+  const handleTableChange = (pagination: TablePaginationConfig) => {
     setFilters((prev) => ({
       ...prev,
       page: pagination.current || 1,
       page_size: pagination.pageSize || 20,
-      ...(tableFilters.status?.[0] != null
-        ? { status: tableFilters.status[0] as string }
-        : { status: undefined as unknown as string }),
-      ...(tableFilters.priority?.[0] != null
-        ? { priority: tableFilters.priority[0] as string }
-        : { priority: undefined as unknown as string }),
     }));
+  };
+
+  const updateFilter = (key: string, value: string | undefined) => {
+    setFilters((prev) => {
+      const next: Record<string, string | number> = { ...prev, page: 1 };
+      if (value) {
+        next[key] = value;
+      } else {
+        delete next[key];
+      }
+      return next;
+    });
   };
 
   const columns = [
     { title: "ID", dataIndex: "id", width: 60 },
     { title: "標題", dataIndex: "title", ellipsis: true },
-    { title: "提出人", dataIndex: "requester", width: 120 },
-    { title: "模組", dataIndex: "module", width: 120 },
+    { title: "提出人", dataIndex: "requester", width: 100 },
     {
       title: "優先級",
       dataIndex: "priority",
-      width: 100,
-      filters: [
-        { text: "緊急", value: "critical" },
-        { text: "高", value: "high" },
-        { text: "中", value: "medium" },
-        { text: "低", value: "low" },
-      ],
-      filterMultiple: false,
+      width: 90,
       render: (p: Priority) => <PriorityBadge priority={p} />,
     },
     {
       title: "狀態",
       dataIndex: "status",
-      width: 130,
-      filters: [
-        { text: "新需求", value: "new" },
-        { text: "評估中", value: "triage" },
-        { text: "已核准", value: "approved" },
-        { text: "已拒絕", value: "rejected" },
-        { text: "已延後", value: "postponed" },
-      ],
-      filterMultiple: false,
+      width: 100,
       render: (s: Status) => <StatusBadge status={s} />,
     },
     {
@@ -146,46 +176,47 @@ export default function Backlog() {
       width: 120,
       render: (d: string) => dayjs(d).format("YYYY-MM-DD"),
     },
-    {
-      title: "操作",
-      width: 280,
-      render: (_: unknown, record: Request) => (
-        <Space size="small">
-          <Button size="small" onClick={() => setEditingRequest(record)}>
-            編輯
-          </Button>
-          <Select
-            size="small"
-            value={record.status}
-            style={{ width: 110 }}
-            onChange={(val: Status) => handleStatusChange(record.id, val)}
-            options={[
-              { value: "new", label: "新需求" },
-              { value: "triage", label: "評估中" },
-              { value: "approved", label: "已核准" },
-              { value: "rejected", label: "已拒絕" },
-              { value: "postponed", label: "已延後" },
-            ]}
-          />
-          {record.status === "approved" && (
-            <Button size="small" type="primary" onClick={() => setAssignModal(record)}>
-              指派
-            </Button>
-          )}
-        </Space>
-      ),
-    },
   ];
 
   return (
     <>
-      <Title level={3}>需求池</Title>
+      <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 8 }}>
+        <Title level={3} style={{ margin: 0 }}>需求池</Title>
+      </div>
+
+      <Space style={{ marginBottom: 16 }} wrap>
+        <Input.Search
+          placeholder="搜尋標題..."
+          allowClear
+          onSearch={(val) => updateFilter("search", val || undefined)}
+          style={{ width: 240 }}
+        />
+        <Select
+          placeholder="狀態"
+          allowClear
+          style={{ width: 120 }}
+          options={statusOptions}
+          onChange={(val) => updateFilter("status", val)}
+        />
+        <Select
+          placeholder="優先級"
+          allowClear
+          style={{ width: 120 }}
+          options={priorityOptions}
+          onChange={(val) => updateFilter("priority", val)}
+        />
+      </Space>
+
       <Table
         dataSource={data?.items}
         columns={columns}
         rowKey="id"
         loading={isLoading}
         onChange={handleTableChange}
+        onRow={(record) => ({
+          onClick: () => setDetailRequest(record),
+          style: { cursor: "pointer" },
+        })}
         pagination={{
           current: data?.page,
           pageSize: data?.page_size,
@@ -194,53 +225,75 @@ export default function Backlog() {
         }}
       />
 
-      <Modal
-        title="編輯需求"
-        open={!!editingRequest}
-        onOk={handleEditSubmit}
-        onCancel={() => setEditingRequest(null)}
-        okText="儲存"
-        cancelText="取消"
-        confirmLoading={updateRequest.isPending}
-        width={640}
+      {/* Detail Drawer */}
+      <Drawer
+        title={detailRequest ? `#${detailRequest.id} ${detailRequest.title}` : ""}
+        open={!!detailRequest}
+        onClose={() => setDetailRequest(null)}
+        width={560}
       >
-        <Form form={editForm} layout="vertical">
-          <Form.Item name="title" label="標題" rules={[{ required: true, message: "請輸入標題" }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="requester" label="提出人" rules={[{ required: true, message: "請輸入提出人" }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="module" label="模組">
-            <Input />
-          </Form.Item>
-          <Form.Item name="priority" label="優先級">
-            <Select
-              options={[
-                { value: "critical", label: "緊急" },
-                { value: "high", label: "高" },
-                { value: "medium", label: "中" },
-                { value: "low", label: "低" },
-              ]}
-            />
-          </Form.Item>
-          <div style={{ display: "flex", gap: 16 }}>
-            <Form.Item name="start_date" label="開始日" style={{ flex: 1 }}>
-              <DatePicker style={{ width: "100%" }} />
-            </Form.Item>
-            <Form.Item name="due_date" label="截止日" style={{ flex: 1 }}>
-              <DatePicker style={{ width: "100%" }} />
-            </Form.Item>
-          </div>
-          <Form.Item name="description" label="描述">
-            <TextArea rows={4} />
-          </Form.Item>
-          <Form.Item name="business_impact" label="業務影響">
-            <TextArea rows={3} />
-          </Form.Item>
-        </Form>
-      </Modal>
+        {detailRequest && (
+          <>
+            <Form form={drawerForm} layout="vertical">
+              <Form.Item name="title" label="標題" rules={[{ required: true, message: "請輸入標題" }]}>
+                <Input />
+              </Form.Item>
+              <div style={{ display: "flex", gap: 16 }}>
+                <Form.Item name="requester" label="提出人" rules={[{ required: true, message: "請輸入提出人" }]} style={{ flex: 1 }}>
+                  <Input />
+                </Form.Item>
+                <Form.Item name="priority" label="優先級" style={{ flex: 1 }}>
+                  <Select options={priorityOptions} />
+                </Form.Item>
+              </div>
+              <div style={{ display: "flex", gap: 16 }}>
+                <Form.Item label="狀態" style={{ flex: 1 }}>
+                  {isRD ? (
+                    <Select
+                      value={detailRequest.status}
+                      onChange={(val: Status) => handleStatusChange(detailRequest.id, val)}
+                      options={statusOptions}
+                    />
+                  ) : (
+                    <StatusBadge status={detailRequest.status} />
+                  )}
+                </Form.Item>
+              </div>
+              <div style={{ display: "flex", gap: 16 }}>
+                <Form.Item name="start_date" label="開始日" style={{ flex: 1 }}>
+                  <DatePicker style={{ width: "100%" }} />
+                </Form.Item>
+                <Form.Item name="due_date" label="截止日" style={{ flex: 1 }}>
+                  <DatePicker style={{ width: "100%" }} />
+                </Form.Item>
+              </div>
+              <Form.Item name="description" label="描述">
+                <TextArea rows={3} />
+              </Form.Item>
+              <Form.Item name="business_impact" label="業務影響">
+                <TextArea rows={3} />
+              </Form.Item>
+            </Form>
 
+            <Space>
+              <Button type="primary" onClick={handleUpdate} loading={updateRequest.isPending}>
+                更新
+              </Button>
+              {isRD && detailRequest.status === "in_progress" && (
+                <Button onClick={() => setAssignModal(detailRequest)}>
+                  指派
+                </Button>
+              )}
+            </Space>
+
+            <Divider />
+            <Title level={5} style={{ marginBottom: 12 }}>評論</Title>
+            <CommentSection requestId={detailRequest.id} />
+          </>
+        )}
+      </Drawer>
+
+      {/* Assign Modal */}
       <Modal
         title={`指派「${assignModal?.title}」到團隊`}
         open={!!assignModal}

@@ -1,7 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { EditOutlined } from "@ant-design/icons";
 import { Card, Typography } from "antd";
+import { useRef } from "react";
 import type { KanbanCard as KanbanCardType } from "../types";
 import PriorityBadge from "./PriorityBadge";
 
@@ -15,30 +15,35 @@ interface Props {
 export default function KanbanCard({ card, onEdit }: Props) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: card.id, data: { card } });
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
+    transform: CSS.Translate.toString(transform),
+    transition: transition || "transform 200ms ease",
+    opacity: isDragging ? 0.4 : 1,
     marginBottom: 8,
     cursor: "grab",
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <Card
-        size="small"
-        extra={
-          <EditOutlined
-            style={{ cursor: "pointer" }}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onEdit();
-            }}
-          />
-        }
-      >
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      onPointerDown={(e) => {
+        pointerStart.current = { x: e.clientX, y: e.clientY };
+        listeners?.onPointerDown?.(e);
+      }}
+      onPointerUp={(e) => {
+        if (!pointerStart.current) return;
+        const dx = Math.abs(e.clientX - pointerStart.current.x);
+        const dy = Math.abs(e.clientY - pointerStart.current.y);
+        if (dx < 5 && dy < 5) onEdit();
+        pointerStart.current = null;
+      }}
+    >
+      <Card size="small">
         <div style={{ marginBottom: 4 }}>
           <Text strong>#{card.request.id} {card.request.title}</Text>
         </div>
