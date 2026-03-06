@@ -1,0 +1,51 @@
+export type Priority = "critical" | "high" | "medium" | "low";
+export type Status = "new" | "triage" | "approved" | "rejected" | "postponed";
+export type Stage = "todo" | "in_progress" | "review" | "done";
+
+export interface Team {
+  id: number;
+  name: string;
+  description: string;
+  created_at: string;
+}
+
+export interface Request {
+  id: number;
+  title: string;
+  description: string;
+  business_impact: string;
+  requester: string;
+  module: string;
+  priority: Priority;
+  status: Status;
+  start_date: string | null;
+  due_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RequestListResponse {
+  items: Request[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface KanbanCard {
+  id: number;
+  request_id: number;
+  team_id: number;
+  assignee: string;
+  stage: Stage;
+  position: number;
+  created_at: string;
+  updated_at: string;
+  request: Request;
+}
+
+export interface KanbanBoard {
+  todo: KanbanCard[];
+  in_progress: KanbanCard[];
+  review: KanbanCard[];
+  done: KanbanCard[];
+}
