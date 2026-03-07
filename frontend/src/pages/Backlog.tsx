@@ -6,13 +6,13 @@ import {
   Form,
   Input,
   message,
-  Modal,
+
   Select,
   Space,
   Table,
   Typography,
 } from "antd";
-import type { TablePaginationConfig } from "antd/es/table";
+import type { TablePaginationConfig, SorterResult } from "antd/es/table/interface";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import CommentSection from "../components/CommentSection";
@@ -32,10 +32,8 @@ const { TextArea } = Input;
 
 const statusOptions = [
   { value: "new", label: "新需求" },
-  { value: "triage", label: "評估中" },
-  { value: "in_progress", label: "進行中" },
+  { value: "assigned", label: "已指派" },
   { value: "done", label: "已完成" },
-  { value: "closed", label: "已關閉" },
   { value: "cancelled", label: "已取消" },
 ];
 
@@ -64,8 +62,6 @@ export default function Backlog() {
   const [detailRequest, setDetailRequest] = useState<Request | null>(null);
   const [drawerForm] = Form.useForm();
 
-  // Assign modal
-  const [assignModal, setAssignModal] = useState<Request | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
 
   useEffect(() => {
@@ -104,28 +100,27 @@ export default function Backlog() {
     });
   };
 
-  const handleStatusChange = (id: number, status: Status) => {
+  const handleCancel = () => {
+    if (!detailRequest) return;
     updateRequest.mutate(
-      { id, status },
+      { id: detailRequest.id, status: "cancelled" },
       {
         onSuccess: () => {
-          if (detailRequest?.id === id) {
-            setDetailRequest((prev) => (prev ? { ...prev, status } : null));
-          }
+          message.success("需求已取消");
+          setDetailRequest((prev) => (prev ? { ...prev, status: "cancelled" } : null));
         },
-        onError: () => message.error("狀態更新失敗"),
+        onError: () => message.error("取消失敗"),
       }
     );
   };
 
   const handleAssign = () => {
-    if (!assignModal || !selectedTeam) return;
+    if (!detailRequest || !selectedTeam) return;
     createCard.mutate(
-      { request_id: assignModal.id, team_id: selectedTeam },
+      { request_id: detailRequest.id, team_id: selectedTeam },
       {
         onSuccess: () => {
           message.success("已建立看板卡片");
-          setAssignModal(null);
           setSelectedTeam(null);
         },
         onError: (err: any) =>
@@ -134,12 +129,27 @@ export default function Backlog() {
     );
   };
 
-  const handleTableChange = (pagination: TablePaginationConfig) => {
-    setFilters((prev) => ({
-      ...prev,
-      page: pagination.current || 1,
-      page_size: pagination.pageSize || 20,
-    }));
+  const handleTableChange = (
+    pagination: TablePaginationConfig,
+    _filters: Record<string, unknown>,
+    sorter: SorterResult<Request> | SorterResult<Request>[],
+  ) => {
+    const s = Array.isArray(sorter) ? sorter[0] : sorter;
+    setFilters((prev) => {
+      const next: Record<string, string | number> = {
+        ...prev,
+        page: pagination.current || 1,
+        page_size: pagination.pageSize || 20,
+      };
+      if (s?.field && s.order) {
+        next.sort = String(s.field);
+        next.order = s.order === "ascend" ? "asc" : "desc";
+      } else {
+        next.sort = "created_at";
+        next.order = "desc";
+      }
+      return next;
+    });
   };
 
   const updateFilter = (key: string, value: string | undefined) => {
@@ -155,19 +165,21 @@ export default function Backlog() {
   };
 
   const columns = [
-    { title: "ID", dataIndex: "id", width: 60 },
-    { title: "標題", dataIndex: "title", ellipsis: true },
-    { title: "提出人", dataIndex: "requester", width: 100 },
+    { title: "ID", dataIndex: "id", width: 80, sorter: true },
+    { title: "標題", dataIndex: "title", ellipsis: true, sorter: true },
+    { title: "提出人", dataIndex: "requester", width: 100, sorter: true },
     {
       title: "優先級",
       dataIndex: "priority",
       width: 90,
+      sorter: true,
       render: (p: Priority) => <PriorityBadge priority={p} />,
     },
     {
       title: "狀態",
       dataIndex: "status",
       width: 100,
+      sorter: true,
       render: (s: Status) => <StatusBadge status={s} />,
     },
     {
@@ -180,6 +192,7 @@ export default function Backlog() {
       title: "建立日期",
       dataIndex: "created_at",
       width: 120,
+      sorter: true,
       render: (d: string) => dayjs(d).format("YYYY-MM-DD"),
     },
   ];
@@ -235,7 +248,7 @@ export default function Backlog() {
       <Drawer
         title={detailRequest ? `#${detailRequest.id} ${detailRequest.title}` : ""}
         open={!!detailRequest}
-        onClose={() => setDetailRequest(null)}
+        onClose={() => { setDetailRequest(null); setSelectedTeam(null); }}
         width={560}
       >
         {detailRequest && (
@@ -254,16 +267,24 @@ export default function Backlog() {
               </div>
               <div style={{ display: "flex", gap: 16 }}>
                 <Form.Item label="狀態" style={{ flex: 1 }}>
-                  {isRD ? (
-                    <Select
-                      value={detailRequest.status}
-                      onChange={(val: Status) => handleStatusChange(detailRequest.id, val)}
-                      options={statusOptions}
-                    />
-                  ) : (
-                    <StatusBadge status={detailRequest.status} />
-                  )}
+                  <StatusBadge status={detailRequest.status} />
                 </Form.Item>
+                {isRD && (detailRequest.status === "new" || detailRequest.status === "assigned") && (
+                  <Form.Item label="指派團隊" style={{ flex: 1 }}>
+                    <Space.Compact style={{ width: "100%" }}>
+                      <Select
+                        placeholder="選擇團隊"
+                        style={{ flex: 1 }}
+                        value={selectedTeam}
+                        onChange={setSelectedTeam}
+                        options={teams?.map((t) => ({ value: t.id, label: t.name }))}
+                      />
+                      <Button type="primary" onClick={handleAssign} loading={createCard.isPending} disabled={!selectedTeam}>
+                        {detailRequest.status === "assigned" ? "重新指派" : "指派"}
+                      </Button>
+                    </Space.Compact>
+                  </Form.Item>
+                )}
               </div>
               <div style={{ display: "flex", gap: 16 }}>
                 <Form.Item name="start_date" label="開始日" style={{ flex: 1 }}>
@@ -285,10 +306,8 @@ export default function Backlog() {
               <Button type="primary" onClick={handleUpdate} loading={updateRequest.isPending}>
                 更新
               </Button>
-              {isRD && (
-                <Button onClick={() => setAssignModal(detailRequest)}>
-                  {detailRequest.assigned_team ? "重新指派" : "指派"}
-                </Button>
+              {isRD && detailRequest.status === "new" && (
+                <Button danger onClick={handleCancel}>取消需求</Button>
               )}
             </Space>
 
@@ -299,28 +318,8 @@ export default function Backlog() {
         )}
       </Drawer>
 
-      {/* Assign Modal */}
-      <Modal
-        title={`指派「${assignModal?.title}」到團隊`}
-        open={!!assignModal}
-        onOk={handleAssign}
-        onCancel={() => {
-          setAssignModal(null);
-          setSelectedTeam(null);
-        }}
-        okText="確認"
-        cancelText="取消"
-        okButtonProps={{ disabled: !selectedTeam }}
-        confirmLoading={createCard.isPending}
-      >
-        <Select
-          placeholder="選擇團隊"
-          style={{ width: "100%" }}
-          value={selectedTeam}
-          onChange={setSelectedTeam}
-          options={teams?.map((t) => ({ value: t.id, label: t.name }))}
-        />
-      </Modal>
+
+
     </>
   );
 }

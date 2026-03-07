@@ -17,8 +17,12 @@ from ..schemas import (
 router = APIRouter(prefix="/api/requests", tags=["requests"])
 
 SORT_COLUMNS = {
-    "created_at": Request.created_at,
+    "id": Request.id,
+    "title": Request.title,
+    "requester": Request.requester,
     "priority": Request.priority,
+    "status": Request.status,
+    "created_at": Request.created_at,
     "updated_at": Request.updated_at,
 }
 
@@ -96,6 +100,10 @@ def update_request(
     rd_only_fields = {"status", "priority"}
     if not user and rd_only_fields & data.keys():
         raise HTTPException(403, "Only RD can change status and priority")
+    if "status" in data:
+        new_status = data["status"].value if hasattr(data["status"], "value") else data["status"]
+        if not (req.status == "new" and new_status == "cancelled"):
+            raise HTTPException(400, "Only new requests can be cancelled")
     for key, val in data.items():
         setattr(req, key, val if not hasattr(val, "value") else val.value)
     db.commit()
