@@ -1,4 +1,4 @@
-import { Segmented, Tooltip, Typography } from "antd";
+import { Segmented, Switch, Tooltip, Typography } from "antd";
 import dayjs from "dayjs";
 import dayOfYear from "dayjs/plugin/dayOfYear";
 import { useMemo, useState } from "react";
@@ -23,15 +23,20 @@ const LABEL_WIDTH = 260;
 
 interface Props {
   requests: Request[];
+  onClickRequest?: (id: number) => void;
 }
 
-export default function GanttView({ requests }: Props) {
+export default function GanttView({ requests, onClickRequest }: Props) {
   const [granularity, setGranularity] = useState<Granularity>("day");
+  const [showUndated, setShowUndated] = useState(false);
   const pxPerDay = granularity === "day" ? DAY_PX : WEEK_PX / 7;
 
   const items = useMemo(
-    () => requests.filter((r) => r.start_date && r.due_date),
-    [requests]
+    () =>
+      showUndated
+        ? requests
+        : requests.filter((r) => r.start_date && r.due_date),
+    [requests, showUndated]
   );
 
   const { minDate, totalDays, months } = useMemo(() => {
@@ -68,10 +73,13 @@ export default function GanttView({ requests }: Props) {
 
   const todayOffset = dayOffset(dayjs());
 
-  const getBar = (r: Request) => ({
-    left: dayOffset(dayjs(r.start_date!)),
-    width: daySpan(dayjs(r.start_date!), dayjs(r.due_date!)),
-  });
+  const hasDate = (r: Request) => !!(r.start_date && r.due_date);
+
+  const getBar = (r: Request) => {
+    const start = r.start_date ? dayjs(r.start_date) : dayjs();
+    const end = r.due_date ? dayjs(r.due_date) : dayjs().add(5, "day");
+    return { left: dayOffset(start), width: daySpan(start, end) };
+  };
 
   if (items.length === 0) {
     return <Text type="secondary">沒有設定日期的需求，請在編輯中設定開始日與截止日。</Text>;
@@ -81,7 +89,7 @@ export default function GanttView({ requests }: Props) {
 
   return (
     <>
-      <div style={{ marginBottom: 8 }}>
+      <div style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 16 }}>
         <Segmented
           value={granularity}
           onChange={(val) => setGranularity(val as Granularity)}
@@ -90,6 +98,10 @@ export default function GanttView({ requests }: Props) {
             { value: "week", label: "週" },
           ]}
         />
+        <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+          <Switch size="small" checked={showUndated} onChange={setShowUndated} />
+          <Text style={{ fontSize: 13 }}>顯示未排期</Text>
+        </label>
       </div>
       <div style={{ overflow: "auto", border: "1px solid #f0f0f0", borderRadius: 8 }}>
         <div style={{ display: "flex", minWidth: LABEL_WIDTH + totalDays * pxPerDay }}>
@@ -210,6 +222,7 @@ export default function GanttView({ requests }: Props) {
             {/* Bars */}
             {items.map((r) => {
               const { left, width } = getBar(r);
+              const dated = hasDate(r);
               return (
                 <div
                   key={r.id}
@@ -241,19 +254,21 @@ export default function GanttView({ requests }: Props) {
                     title={
                       <div>
                         <div>#{r.id} {r.title}</div>
-                        <div>{r.start_date} ~ {r.due_date}</div>
+                        <div>{dated ? `${r.start_date} ~ ${r.due_date}` : "未排期"}</div>
                         <div>{r.requester} | {r.module}</div>
                       </div>
                     }
                   >
                     <div
+                      onClick={() => onClickRequest?.(r.id)}
                       style={{
                         position: "absolute",
                         left: left * pxPerDay + 2,
                         top: 8,
                         width: Math.max(width * pxPerDay - 4, 4),
                         height: ROW_HEIGHT - 16,
-                        background: priorityColors[r.priority],
+                        background: dated ? priorityColors[r.priority] : "transparent",
+                        border: dated ? "none" : `2px dashed ${priorityColors[r.priority]}`,
                         borderRadius: 4,
                         opacity: 0.85,
                         cursor: "pointer",
@@ -265,7 +280,7 @@ export default function GanttView({ requests }: Props) {
                     >
                       <Text
                         style={{
-                          color: "#fff",
+                          color: dated ? "#fff" : priorityColors[r.priority],
                           fontSize: 12,
                           whiteSpace: "nowrap",
                           overflow: "hidden",
