@@ -56,7 +56,6 @@ class RequestCreate(BaseModel):
     description: str = ""
     business_impact: str = ""
     requester: str
-    module: str = ""
     priority: Priority = Priority.medium
     start_date: Optional[date] = None
     due_date: Optional[date] = None
@@ -66,7 +65,6 @@ class RequestUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     business_impact: Optional[str] = None
-    module: Optional[str] = None
     priority: Optional[Priority] = None
     status: Optional[Status] = None
     start_date: Optional[date] = None
@@ -79,7 +77,6 @@ class RequestOut(BaseModel):
     description: str
     business_impact: str
     requester: str
-    module: str
     priority: Priority
     status: Status
     start_date: Optional[date] = None

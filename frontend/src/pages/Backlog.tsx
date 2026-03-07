@@ -71,7 +71,6 @@ export default function Backlog() {
         description: detailRequest.description,
         business_impact: detailRequest.business_impact,
         requester: detailRequest.requester,
-        module: detailRequest.module,
         priority: detailRequest.priority,
         start_date: detailRequest.start_date ? dayjs(detailRequest.start_date) : null,
         due_date: detailRequest.due_date ? dayjs(detailRequest.due_date) : null,

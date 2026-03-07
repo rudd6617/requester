@@ -255,7 +255,7 @@ export default function GanttView({ requests, onClickRequest }: Props) {
                       <div>
                         <div>#{r.id} {r.title}</div>
                         <div>{dated ? `${r.start_date} ~ ${r.due_date}` : "未排期"}</div>
-                        <div>{r.requester} | {r.module}</div>
+                        <div>{r.requester}</div>
                       </div>
                     }
                   >

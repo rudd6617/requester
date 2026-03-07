@@ -36,7 +36,6 @@ class Request(Base):
     description = Column(Text, default="")
     business_impact = Column(Text, default="")
     requester = Column(String(100), nullable=False)
-    module = Column(String(100), default="")
     priority = Column(
         Enum("critical", "high", "medium", "low", name="priority_enum"),
         default="medium",

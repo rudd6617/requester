@@ -15,7 +15,6 @@ export interface Request {
   description: string;
   business_impact: string;
   requester: string;
-  module: string;
   priority: Priority;
   status: Status;
   start_date: string | null;
