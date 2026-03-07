@@ -6,7 +6,6 @@ import {
   Form,
   Input,
   message,
-
   Select,
   Space,
   Table,
@@ -243,7 +242,6 @@ export default function Backlog() {
         }}
       />
 
-      {/* Detail Drawer */}
       <Drawer
         title={detailRequest ? `#${detailRequest.id} ${detailRequest.title}` : ""}
         open={!!detailRequest}

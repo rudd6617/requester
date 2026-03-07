@@ -11,7 +11,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { BarChartOutlined, ProjectOutlined } from "@ant-design/icons";
-import { Button, Card, DatePicker, Divider, Drawer, Form, Input, message, Modal, Segmented, Select, Spin, Typography } from "antd";
+import { Button, Card, DatePicker, Divider, Drawer, Form, Input, message, Segmented, Select, Spin, Typography } from "antd";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
@@ -70,7 +70,6 @@ export default function KanbanBoard() {
   const updateRequest = useUpdateRequest();
   const [activeCard, setActiveCard] = useState<KanbanCard | null>(null);
   const [editingCard, setEditingCard] = useState<KanbanCard | null>(null);
-  const [editMode, setEditMode] = useState<"drawer" | "modal">("drawer");
   const [cardForm] = Form.useForm();
   const [requestForm] = Form.useForm();
 
@@ -230,15 +229,6 @@ export default function KanbanBoard() {
             { value: "gantt", icon: <BarChartOutlined />, label: "甘特圖" },
           ]}
         />
-        <Segmented
-          value={editMode}
-          onChange={(val) => setEditMode(val as "drawer" | "modal")}
-          options={[
-            { value: "drawer", label: "Drawer" },
-            { value: "modal", label: "Modal" },
-          ]}
-          size="small"
-        />
       </div>
       <div style={{ marginBottom: 16, padding: "8px 12px", background: "#f5f5f5", borderRadius: 8 }}>
         <Segmented
@@ -286,8 +276,13 @@ export default function KanbanBoard() {
         <GanttView requests={ganttRequests} onClickRequest={handleGanttClick} />
       )}
 
-      {(() => {
-        const editContent = editingCard && (
+      <Drawer
+        title={editingCard ? `#${editingCard.request.id} ${editingCard.request.title}` : ""}
+        open={!!editingCard}
+        onClose={() => setEditingCard(null)}
+        width={560}
+      >
+        {editingCard && (
           <>
             <Text type="secondary" strong>卡片資訊</Text>
             <Form form={cardForm} layout="vertical" style={{ marginTop: 8 }}>
@@ -338,20 +333,8 @@ export default function KanbanBoard() {
             <Title level={5} style={{ marginBottom: 12 }}>評論</Title>
             <CommentSection requestId={editingCard.request.id} />
           </>
-        );
-
-        const editTitle = editingCard ? `#${editingCard.request.id} ${editingCard.request.title}` : "";
-
-        return editMode === "drawer" ? (
-          <Drawer title={editTitle} open={!!editingCard} onClose={() => setEditingCard(null)} width={560}>
-            {editContent}
-          </Drawer>
-        ) : (
-          <Modal title={editTitle} open={!!editingCard} onCancel={() => setEditingCard(null)} footer={null} width={560}>
-            {editContent}
-          </Modal>
-        );
-      })()}
+        )}
+      </Drawer>
     </>
   );
 }
