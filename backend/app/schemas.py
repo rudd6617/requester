@@ -14,10 +14,8 @@ class Priority(str, Enum):
 
 class Status(str, Enum):
     new = "new"
-    triage = "triage"
-    in_progress = "in_progress"
+    assigned = "assigned"
     done = "done"
-    closed = "closed"
     cancelled = "cancelled"
 
 

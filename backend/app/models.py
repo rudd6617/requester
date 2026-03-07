@@ -43,7 +43,7 @@ class Request(Base):
         nullable=False,
     )
     status = Column(
-        Enum("new", "triage", "in_progress", "done", "closed", "cancelled", name="status_enum"),
+        Enum("new", "assigned", "done", "cancelled", name="status_enum"),
         default="new",
         nullable=False,
     )

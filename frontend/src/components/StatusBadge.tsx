@@ -3,19 +3,15 @@ import type { Status } from "../types";
 
 const colorMap: Record<Status, string> = {
   new: "blue",
-  triage: "orange",
-  in_progress: "cyan",
+  assigned: "cyan",
   done: "green",
-  closed: "default",
   cancelled: "red",
 };
 
 const labelMap: Record<Status, string> = {
   new: "新需求",
-  triage: "評估中",
-  in_progress: "進行中",
+  assigned: "已指派",
   done: "已完成",
-  closed: "已關閉",
   cancelled: "已取消",
 };
 
