@@ -105,8 +105,8 @@ export function useMoveKanbanCard() {
     }) => api.moveKanbanCard(id, { stage, position }),
     onMutate: async ({ id, stage, position }) => {
       await qc.cancelQueries({ queryKey: ["kanban"] });
-      const queries = qc.getQueriesData<KanbanBoard>({ queryKey: ["kanban"] });
-      for (const [key, data] of queries) {
+      const previousQueries = qc.getQueriesData<KanbanBoard>({ queryKey: ["kanban"] });
+      for (const [key, data] of previousQueries) {
         if (!data) continue;
         const newBoard = { ...data };
         let movedCard = null;
@@ -127,8 +127,15 @@ export function useMoveKanbanCard() {
           qc.setQueryData(key, newBoard);
         }
       }
+      return { previousQueries };
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ["kanban"] }),
+    onError: (_err, _vars, context) => {
+      if (context?.previousQueries) {
+        for (const [key, data] of context.previousQueries) {
+          qc.setQueryData(key, data);
+        }
+      }
+    },
   });
 }
 
