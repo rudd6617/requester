@@ -20,7 +20,7 @@ def create_card(body: KanbanCardCreate, db: Session = Depends(get_db), _: User =
     req = db.get(Request, body.request_id)
     if not req:
         raise HTTPException(404, "Request not found")
-    if req.status in ("done", "closed", "cancelled"):
+    if req.status in ("done", "cancelled"):
         raise HTTPException(400, "Cannot assign completed or cancelled requests")
     existing = (
         db.query(KanbanCard)
@@ -46,6 +46,7 @@ def create_card(body: KanbanCardCreate, db: Session = Depends(get_db), _: User =
         card = KanbanCard(**body.model_dump(), position=position)
         db.add(card)
 
+    req.status = "assigned"
     db.commit()
     db.refresh(card)
     return card
@@ -71,6 +72,7 @@ def update_card(card_id: int, body: KanbanCardUpdate, db: Session = Depends(get_
         raise HTTPException(404, "Card not found")
     for key, val in body.model_dump(exclude_unset=True).items():
         setattr(card, key, val if not hasattr(val, "value") else val.value)
+    _sync_request_status(card, db)
     db.commit()
     db.refresh(card)
     return card
@@ -84,6 +86,14 @@ def move_card(card_id: int, body: KanbanCardMove, db: Session = Depends(get_db),
 
     card.stage = body.stage.value
     card.position = body.position
+    _sync_request_status(card, db)
     db.commit()
     db.refresh(card)
     return card
+
+
+def _sync_request_status(card: KanbanCard, db: Session) -> None:
+    req = db.get(Request, card.request_id)
+    if not req or req.status == "cancelled":
+        return
+    req.status = "done" if card.stage == "done" else "assigned"
