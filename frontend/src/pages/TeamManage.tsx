@@ -52,31 +52,14 @@ export default function TeamManage() {
   const handleDelete = (id: number) => {
     deleteTeam.mutate(id, {
       onSuccess: () => message.success("團隊已刪除"),
-      onError: () => message.error("刪除失敗"),
+      onError: (err: any) => message.error(err?.response?.data?.detail || "刪除失敗"),
     });
   };
 
   const columns = [
-    { title: "ID", dataIndex: "id", key: "id", width: 60 },
-    { title: "名稱", dataIndex: "name", key: "name" },
-    { title: "說明", dataIndex: "description", key: "description" },
-    {
-      title: "操作",
-      key: "actions",
-      width: 180,
-      render: (_: unknown, record: Team) => (
-        <Space>
-          <Button size="small" onClick={() => openEdit(record)}>
-            編輯
-          </Button>
-          <Popconfirm title="確定要刪除此團隊？" onConfirm={() => handleDelete(record.id)}>
-            <Button size="small" danger>
-              刪除
-            </Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
+    { title: "ID", dataIndex: "id", width: 60 },
+    { title: "名稱", dataIndex: "name" },
+    { title: "說明", dataIndex: "description" },
   ];
 
   return (
@@ -95,6 +78,10 @@ export default function TeamManage() {
         rowKey="id"
         loading={isLoading}
         pagination={false}
+        onRow={(record) => ({
+          onClick: () => openEdit(record),
+          style: { cursor: "pointer" },
+        })}
       />
       <Modal
         title={editingTeam ? "編輯團隊" : "新增團隊"}
@@ -102,6 +89,21 @@ export default function TeamManage() {
         onOk={handleSubmit}
         onCancel={() => setIsModalOpen(false)}
         confirmLoading={createTeam.isPending || updateTeam.isPending}
+        footer={
+          <div style={{ display: "flex", justifyContent: editingTeam ? "space-between" : "flex-end" }}>
+            {editingTeam && (
+              <Popconfirm title="確定要刪除此團隊？" onConfirm={() => { handleDelete(editingTeam.id); setIsModalOpen(false); }}>
+                <Button danger>刪除團隊</Button>
+              </Popconfirm>
+            )}
+            <Space>
+              <Button onClick={() => setIsModalOpen(false)}>取消</Button>
+              <Button type="primary" onClick={handleSubmit} loading={createTeam.isPending || updateTeam.isPending}>
+                確定
+              </Button>
+            </Space>
+          </div>
+        }
       >
         <Form form={form} layout="vertical">
           <Form.Item name="name" label="名稱" rules={[{ required: true, message: "請輸入名稱" }]}>
