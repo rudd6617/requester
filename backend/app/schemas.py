@@ -88,6 +88,7 @@ class RequestOut(BaseModel):
     due_date: Optional[date] = None
     created_at: datetime
     updated_at: datetime
+    assigned_team: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

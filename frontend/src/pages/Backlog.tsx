@@ -27,7 +27,7 @@ import {
 } from "../hooks/useRequests";
 import type { Priority, Request, Status } from "../types";
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 const { TextArea } = Input;
 
 const statusOptions = [
@@ -171,6 +171,12 @@ export default function Backlog() {
       render: (s: Status) => <StatusBadge status={s} />,
     },
     {
+      title: "指派團隊",
+      dataIndex: "assigned_team",
+      width: 120,
+      render: (team: string | null) => team || "-",
+    },
+    {
       title: "建立日期",
       dataIndex: "created_at",
       width: 120,
@@ -279,9 +285,9 @@ export default function Backlog() {
               <Button type="primary" onClick={handleUpdate} loading={updateRequest.isPending}>
                 更新
               </Button>
-              {isRD && detailRequest.status === "in_progress" && (
+              {isRD && (
                 <Button onClick={() => setAssignModal(detailRequest)}>
-                  指派
+                  {detailRequest.assigned_team ? "重新指派" : "指派"}
                 </Button>
               )}
             </Space>

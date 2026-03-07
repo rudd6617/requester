@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import desc
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from ..auth import get_current_user_or_none
 from ..database import get_db
-from ..models import Request, User
+from ..models import KanbanCard, Request, User
 from ..schemas import (
     Priority,
     RequestCreate,
@@ -34,7 +34,7 @@ def list_requests(
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    q = db.query(Request)
+    q = db.query(Request).options(joinedload(Request.kanban_card).joinedload(KanbanCard.team))
     if status:
         q = q.filter(Request.status == status.value)
     if priority:
@@ -48,14 +48,23 @@ def list_requests(
     q = q.order_by(desc(sort_col) if order == "desc" else sort_col)
     items = q.offset((page - 1) * page_size).limit(page_size).all()
 
+    for item in items:
+        item.assigned_team = item.kanban_card.team.name if item.kanban_card else None
+
     return RequestListOut(items=items, total=total, page=page, page_size=page_size)
 
 
 @router.get("/{request_id}", response_model=RequestOut)
 def get_request(request_id: int, db: Session = Depends(get_db)):
-    req = db.get(Request, request_id)
+    req = (
+        db.query(Request)
+        .options(joinedload(Request.kanban_card).joinedload(KanbanCard.team))
+        .filter(Request.id == request_id)
+        .first()
+    )
     if not req:
         raise HTTPException(404, "Request not found")
+    req.assigned_team = req.kanban_card.team.name if req.kanban_card else None
     return req
 
 

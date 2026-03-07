@@ -20,15 +20,13 @@ def create_card(body: KanbanCardCreate, db: Session = Depends(get_db), _: User =
     req = db.get(Request, body.request_id)
     if not req:
         raise HTTPException(404, "Request not found")
-    if req.status != "in_progress":
-        raise HTTPException(400, "Only in-progress requests can be assigned to kanban")
+    if req.status in ("done", "closed", "cancelled"):
+        raise HTTPException(400, "Cannot assign completed or cancelled requests")
     existing = (
         db.query(KanbanCard)
         .filter(KanbanCard.request_id == body.request_id)
         .first()
     )
-    if existing:
-        raise HTTPException(400, "Request already has a kanban card")
 
     max_pos = (
         db.query(KanbanCard.position)
@@ -37,6 +35,15 @@ def create_card(body: KanbanCardCreate, db: Session = Depends(get_db), _: User =
         .first()
     )
     position = (max_pos[0] + 1000) if max_pos else 1000
+
+    if existing:
+        existing.team_id = body.team_id
+        existing.assignee = body.assignee or ""
+        existing.stage = "todo"
+        existing.position = position
+        db.commit()
+        db.refresh(existing)
+        return existing
 
     card = KanbanCard(**body.model_dump(), position=position)
     db.add(card)

@@ -22,6 +22,7 @@ export interface Request {
   due_date: string | null;
   created_at: string;
   updated_at: string;
+  assigned_team: string | null;
 }
 
 export interface RequestListResponse {
