@@ -41,12 +41,11 @@ def create_card(body: KanbanCardCreate, db: Session = Depends(get_db), _: User =
         existing.assignee = body.assignee or ""
         existing.stage = "todo"
         existing.position = position
-        db.commit()
-        db.refresh(existing)
-        return existing
+        card = existing
+    else:
+        card = KanbanCard(**body.model_dump(), position=position)
+        db.add(card)
 
-    card = KanbanCard(**body.model_dump(), position=position)
-    db.add(card)
     db.commit()
     db.refresh(card)
     return card

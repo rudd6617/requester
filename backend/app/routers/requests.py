@@ -34,7 +34,7 @@ def list_requests(
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    q = db.query(Request).options(joinedload(Request.kanban_card).joinedload(KanbanCard.team))
+    q = db.query(Request)
     if status:
         q = q.filter(Request.status == status.value)
     if priority:
@@ -45,8 +45,13 @@ def list_requests(
     total = q.count()
 
     sort_col = SORT_COLUMNS.get(sort, Request.created_at)
-    q = q.order_by(desc(sort_col) if order == "desc" else sort_col)
-    items = q.offset((page - 1) * page_size).limit(page_size).all()
+    items = (
+        q.options(joinedload(Request.kanban_card).joinedload(KanbanCard.team))
+        .order_by(desc(sort_col) if order == "desc" else sort_col)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
 
     for item in items:
         item.assigned_team = item.kanban_card.team.name if item.kanban_card else None
