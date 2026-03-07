@@ -1,5 +1,5 @@
 export type Priority = "critical" | "high" | "medium" | "low";
-export type Status = "new" | "assigned" | "done" | "cancelled";
+export type Status = "new" | "assigned" | "done" | "cancelled" | "archived";
 export type Stage = "todo" | "in_progress" | "review" | "done";
 
 export interface Team {

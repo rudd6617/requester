@@ -192,6 +192,20 @@ export default function KanbanBoard() {
     }
   };
 
+  const handleArchive = () => {
+    if (!editingCard) return;
+    updateRequest.mutate(
+      { id: editingCard.request.id, status: "archived" },
+      {
+        onSuccess: () => {
+          message.success("需求已結案");
+          setEditingCard(null);
+        },
+        onError: () => message.error("結案失敗"),
+      }
+    );
+  };
+
   const handleViewChange = (val: ViewMode) => {
     const params: Record<string, string> = {};
     if (teamId) params.team_id = String(teamId);
@@ -325,9 +339,14 @@ export default function KanbanBoard() {
               </Form.Item>
             </Form>
 
-            <Button type="primary" onClick={handleEditSubmit} loading={saving}>
-              儲存
-            </Button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Button type="primary" onClick={handleEditSubmit} loading={saving}>
+                儲存
+              </Button>
+              {editingCard.request.status === "done" && (
+                <Button onClick={handleArchive}>結案歸檔</Button>
+              )}
+            </div>
 
             <Divider />
             <Title level={5} style={{ marginBottom: 12 }}>評論</Title>

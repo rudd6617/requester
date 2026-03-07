@@ -17,6 +17,7 @@ class Status(str, Enum):
     assigned = "assigned"
     done = "done"
     cancelled = "cancelled"
+    archived = "archived"
 
 
 class Stage(str, Enum):

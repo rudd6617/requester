@@ -6,6 +6,7 @@ const colorMap: Record<Status, string> = {
   assigned: "cyan",
   done: "green",
   cancelled: "red",
+  archived: "default",
 };
 
 const labelMap: Record<Status, string> = {
@@ -13,6 +14,7 @@ const labelMap: Record<Status, string> = {
   assigned: "已指派",
   done: "已完成",
   cancelled: "已取消",
+  archived: "已結案",
 };
 
 export default function StatusBadge({ status }: { status: Status }) {

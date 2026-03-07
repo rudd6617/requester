@@ -34,6 +34,7 @@ const statusOptions = [
   { value: "assigned", label: "已指派" },
   { value: "done", label: "已完成" },
   { value: "cancelled", label: "已取消" },
+  { value: "archived", label: "已結案" },
 ];
 
 const priorityOptions = [
@@ -108,6 +109,20 @@ export default function Backlog() {
           setDetailRequest((prev) => (prev ? { ...prev, status: "cancelled" } : null));
         },
         onError: () => message.error("取消失敗"),
+      }
+    );
+  };
+
+  const handleArchive = () => {
+    if (!detailRequest) return;
+    updateRequest.mutate(
+      { id: detailRequest.id, status: "archived" },
+      {
+        onSuccess: () => {
+          message.success("需求已結案");
+          setDetailRequest((prev) => (prev ? { ...prev, status: "archived" as const } : null));
+        },
+        onError: () => message.error("結案失敗"),
       }
     );
   };
@@ -305,6 +320,9 @@ export default function Backlog() {
               </Button>
               {isRD && detailRequest.status === "new" && (
                 <Button danger onClick={handleCancel}>取消需求</Button>
+              )}
+              {isRD && detailRequest.status === "done" && (
+                <Button onClick={handleArchive}>結案歸檔</Button>
               )}
             </Space>
 

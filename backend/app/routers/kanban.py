@@ -20,7 +20,7 @@ def create_card(body: KanbanCardCreate, db: Session = Depends(get_db), _: User =
     req = db.get(Request, body.request_id)
     if not req:
         raise HTTPException(404, "Request not found")
-    if req.status in ("done", "cancelled"):
+    if req.status in ("done", "cancelled", "archived"):
         raise HTTPException(400, "Cannot assign completed or cancelled requests")
     existing = (
         db.query(KanbanCard)

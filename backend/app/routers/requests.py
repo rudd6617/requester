@@ -102,8 +102,12 @@ def update_request(
         raise HTTPException(403, "Only RD can change status and priority")
     if "status" in data:
         new_status = data["status"].value if hasattr(data["status"], "value") else data["status"]
-        if not (req.status == "new" and new_status == "cancelled"):
-            raise HTTPException(400, "Only new requests can be cancelled")
+        allowed = {
+            ("new", "cancelled"),
+            ("done", "archived"),
+        }
+        if (req.status, new_status) not in allowed:
+            raise HTTPException(400, f"Cannot change status from {req.status} to {new_status}")
     for key, val in data.items():
         setattr(req, key, val if not hasattr(val, "value") else val.value)
     db.commit()
