@@ -73,12 +73,17 @@ export default function KanbanBoard() {
   const [cardForm] = Form.useForm();
   const [requestForm] = Form.useForm();
 
-  const ganttRequests = useMemo(() => {
+  const allCards = useMemo(() => {
     if (!board) return [];
-    return [...board.todo, ...board.in_progress, ...board.review, ...board.done].map(
-      (c) => c.request
-    );
+    return [...board.todo, ...board.in_progress, ...board.review, ...board.done];
   }, [board]);
+
+  const ganttRequests = useMemo(() => allCards.map((c) => c.request), [allCards]);
+
+  const handleGanttClick = (requestId: number) => {
+    const card = allCards.find((c) => c.request.id === requestId);
+    if (card) setEditingCard(card);
+  };
 
   useEffect(() => {
     if (editingCard) {
@@ -269,7 +274,7 @@ export default function KanbanBoard() {
       )}
 
       {board && viewMode === "gantt" && (
-        <GanttView requests={ganttRequests} />
+        <GanttView requests={ganttRequests} onClickRequest={handleGanttClick} />
       )}
 
       <Drawer
