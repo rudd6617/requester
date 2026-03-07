@@ -68,7 +68,7 @@ export default function Layout() {
             fontSize: 16,
           }}
         >
-          SigKnow
+          Requester
         </div>
         <Menu
           theme="dark"
@@ -117,6 +117,7 @@ export default function Layout() {
         open={loginOpen}
         onCancel={() => setLoginOpen(false)}
         footer={null}
+        width={360}
       >
         <Form form={loginForm} layout="vertical" onFinish={handleLogin}>
           <Form.Item name="username" label="帳號" rules={[{ required: true, message: "請輸入帳號" }]}>
