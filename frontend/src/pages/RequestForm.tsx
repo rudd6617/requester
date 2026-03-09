@@ -1,5 +1,6 @@
 import { Button, Card, Form, Input, message, Select, Typography } from "antd";
 import { useNavigate } from "react-router-dom";
+import { priorityOptions } from "../constants";
 import { useCreateRequest } from "../hooks/useRequests";
 
 const { Title } = Typography;
@@ -29,14 +30,7 @@ export default function RequestForm() {
             <Input />
           </Form.Item>
           <Form.Item name="priority" label="優先級" initialValue="medium" style={{ width: 120 }}>
-            <Select
-              options={[
-                { value: "critical", label: "緊急" },
-                { value: "high", label: "高" },
-                { value: "medium", label: "中" },
-                { value: "low", label: "低" },
-              ]}
-            />
+            <Select options={priorityOptions} />
           </Form.Item>
         </div>
         <Form.Item name="requester" label="提出人" rules={[{ required: true, message: "請輸入提出人" }]}>

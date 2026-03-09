@@ -77,10 +77,10 @@ export default function Layout() {
           items={menuItems}
           onClick={({ key }) => navigate(key)}
         />
-        <div style={{ position: "absolute", bottom: 16, left: 0, right: 0, textAlign: "center" }}>
+        <div style={{ position: "absolute", bottom: 16, left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
           {isRD ? (
             <>
-              <Text style={{ color: "rgba(255,255,255,0.65)", display: "block", fontSize: 12, marginBottom: 4 }}>
+              <Text style={{ color: "rgba(255,255,255,0.65)", fontSize: 12, marginBottom: 4 }}>
                 {user?.display_name}
               </Text>
               <Button
