@@ -20,6 +20,19 @@ class Status(str, Enum):
     archived = "archived"
 
 
+class Risk(str, Enum):
+    high = "high"
+    medium = "medium"
+    low = "low"
+
+
+class DevelopStatus(str, Enum):
+    todo = "todo"
+    in_progress = "in_progress"
+    review = "review"
+    done = "done"
+
+
 class Stage(str, Enum):
     todo = "todo"
     in_progress = "in_progress"
@@ -58,8 +71,11 @@ class RequestCreate(BaseModel):
     business_impact: str = ""
     requester: str
     priority: Priority = Priority.medium
+    risk: Optional[Risk] = None
     start_date: Optional[date] = None
     due_date: Optional[date] = None
+    release_date: Optional[date] = None
+    develop_status: Optional[DevelopStatus] = None
 
 
 class RequestUpdate(BaseModel):
@@ -68,8 +84,11 @@ class RequestUpdate(BaseModel):
     business_impact: Optional[str] = None
     priority: Optional[Priority] = None
     status: Optional[Status] = None
+    risk: Optional[Risk] = None
     start_date: Optional[date] = None
     due_date: Optional[date] = None
+    release_date: Optional[date] = None
+    develop_status: Optional[DevelopStatus] = None
 
 
 class RequestOut(BaseModel):
@@ -80,8 +99,11 @@ class RequestOut(BaseModel):
     requester: str
     priority: Priority
     status: Status
+    risk: Optional[Risk] = None
     start_date: Optional[date] = None
     due_date: Optional[date] = None
+    release_date: Optional[date] = None
+    develop_status: Optional[DevelopStatus] = None
     created_at: datetime
     updated_at: datetime
     assigned_team: Optional[str] = None
@@ -158,6 +180,7 @@ class KanbanCardCreate(BaseModel):
 
 class KanbanCardUpdate(BaseModel):
     assignee: Optional[str] = None
+    ticket_url: Optional[str] = None
     stage: Optional[Stage] = None
 
 
@@ -171,6 +194,7 @@ class KanbanCardOut(BaseModel):
     request_id: int
     team_id: int
     assignee: str
+    ticket_url: str
     stage: Stage
     position: int
     created_at: datetime

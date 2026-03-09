@@ -22,6 +22,7 @@ SORT_COLUMNS = {
     "requester": Request.requester,
     "priority": Request.priority,
     "status": Request.status,
+    "risk": Request.risk,
     "created_at": Request.created_at,
     "updated_at": Request.updated_at,
 }
@@ -30,6 +31,7 @@ SORT_COLUMNS = {
 @router.get("", response_model=RequestListOut)
 def list_requests(
     status: Status | None = None,
+    exclude_status: Status | None = None,
     priority: Priority | None = None,
     search: str | None = None,
     sort: str = "created_at",
@@ -41,6 +43,8 @@ def list_requests(
     q = db.query(Request)
     if status:
         q = q.filter(Request.status == status.value)
+    elif exclude_status:
+        q = q.filter(Request.status != exclude_status.value)
     if priority:
         q = q.filter(Request.priority == priority.value)
     if search:
@@ -97,6 +101,12 @@ def update_request(
     if not req:
         raise HTTPException(404, "Request not found")
     data = body.model_dump(exclude_unset=True)
+    # Drop unchanged status/priority before permission check
+    for field in ("status", "priority"):
+        if field in data:
+            val = data[field].value if hasattr(data[field], "value") else data[field]
+            if val == getattr(req, field):
+                del data[field]
     rd_only_fields = {"status", "priority"}
     if not user and rd_only_fields & data.keys():
         raise HTTPException(403, "Only RD can change status and priority")
@@ -104,10 +114,14 @@ def update_request(
         new_status = data["status"].value if hasattr(data["status"], "value") else data["status"]
         allowed = {
             ("new", "cancelled"),
+            ("assigned", "cancelled"),
             ("done", "archived"),
+            ("cancelled", "archived"),
         }
         if (req.status, new_status) not in allowed:
             raise HTTPException(400, f"Cannot change status from {req.status} to {new_status}")
+        if new_status in ("cancelled", "archived") and req.kanban_card:
+            db.delete(req.kanban_card)
     for key, val in data.items():
         setattr(req, key, val if not hasattr(val, "value") else val.value)
     db.commit()

@@ -47,6 +47,7 @@ def create_card(body: KanbanCardCreate, db: Session = Depends(get_db), _: User =
         db.add(card)
 
     req.status = "assigned"
+    req.develop_status = "todo"
     db.commit()
     db.refresh(card)
     return card
@@ -92,8 +93,20 @@ def move_card(card_id: int, body: KanbanCardMove, db: Session = Depends(get_db),
     return card
 
 
+@router.delete("/cards/{card_id}", status_code=204)
+def delete_card(card_id: int, db: Session = Depends(get_db), _: User = Depends(require_rd)):
+    card = db.get(KanbanCard, card_id)
+    if not card:
+        raise HTTPException(404, "Card not found")
+    if card.request and card.request.status not in ("cancelled", "archived"):
+        card.request.status = "new"
+    db.delete(card)
+    db.commit()
+
+
 def _sync_request_status(card: KanbanCard, db: Session) -> None:
     req = db.get(Request, card.request_id)
     if not req or req.status == "cancelled":
         return
     req.status = "done" if card.stage == "done" else "assigned"
+    req.develop_status = card.stage
