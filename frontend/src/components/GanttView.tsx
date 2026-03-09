@@ -91,6 +91,7 @@ export default function GanttView({ requests, onClickRequest }: Props) {
     <>
       <div style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 16 }}>
         <Segmented
+          className="seg-white"
           value={granularity}
           onChange={(val) => setGranularity(val as Granularity)}
           options={[

@@ -13,12 +13,10 @@ import {
 import { BarChartOutlined, ProjectOutlined } from "@ant-design/icons";
 import { Button, Card, DatePicker, Divider, Drawer, Form, Input, message, Segmented, Select, Spin, Typography } from "antd";
 import dayjs from "dayjs";
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useMemo, useState } from "react";
 import GanttView from "../components/GanttView";
 import KanbanColumn from "../components/KanbanColumn";
 import PriorityBadge from "../components/PriorityBadge";
-import CommentSection from "../components/CommentSection";
 import {
   useKanbanCards,
   useMoveKanbanCard,
@@ -26,26 +24,13 @@ import {
   useUpdateKanbanCard,
   useUpdateRequest,
 } from "../hooks/useRequests";
+import { developStatusOptions, priorityOptions, riskOptions } from "../constants";
 import type { KanbanCard, Stage } from "../types";
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 const STAGES: Stage[] = ["todo", "in_progress", "review", "done"];
-
-const stageOptions = [
-  { value: "todo", label: "待辦" },
-  { value: "in_progress", label: "進行中" },
-  { value: "review", label: "審查中" },
-  { value: "done", label: "已完成" },
-];
-
-const priorityOptions = [
-  { value: "critical", label: "緊急" },
-  { value: "high", label: "高" },
-  { value: "medium", label: "中" },
-  { value: "low", label: "低" },
-];
 
 type ViewMode = "kanban" | "gantt";
 
@@ -56,12 +41,8 @@ const dropAnimation = {
 };
 
 export default function KanbanBoard() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const teamId = searchParams.get("team_id")
-    ? Number(searchParams.get("team_id"))
-    : null;
-  const viewParam = searchParams.get("view") as ViewMode | null;
-  const viewMode: ViewMode = viewParam === "gantt" ? "gantt" : "kanban";
+  const [teamId, setTeamId] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("kanban");
 
   const { data: teams } = useTeams();
   const { data: board, isLoading } = useKanbanCards(teamId);
@@ -82,26 +63,28 @@ export default function KanbanBoard() {
 
   const handleGanttClick = (requestId: number) => {
     const card = allCards.find((c) => c.request.id === requestId);
-    if (card) setEditingCard(card);
+    if (card) handleOpenCard(card);
   };
 
-  useEffect(() => {
-    if (editingCard) {
-      cardForm.setFieldsValue({
-        assignee: editingCard.assignee,
-        stage: editingCard.stage,
-      });
-      requestForm.setFieldsValue({
-        title: editingCard.request.title,
-        description: editingCard.request.description,
-        business_impact: editingCard.request.business_impact,
-        requester: editingCard.request.requester,
-        priority: editingCard.request.priority,
-        start_date: editingCard.request.start_date ? dayjs(editingCard.request.start_date) : null,
-        due_date: editingCard.request.due_date ? dayjs(editingCard.request.due_date) : null,
-      });
-    }
-  }, [editingCard, cardForm, requestForm]);
+  const handleOpenCard = (card: KanbanCard) => {
+    setEditingCard(card);
+    cardForm.setFieldsValue({
+      assignee: card.assignee,
+      ticket_url: card.ticket_url,
+    });
+    requestForm.setFieldsValue({
+      title: card.request.title,
+      description: card.request.description,
+      business_impact: card.request.business_impact,
+      requester: card.request.requester,
+      priority: card.request.priority,
+      risk: card.request.risk,
+      start_date: card.request.start_date ? dayjs(card.request.start_date) : null,
+      due_date: card.request.due_date ? dayjs(card.request.due_date) : null,
+      release_date: card.request.release_date ? dayjs(card.request.release_date) : null,
+      develop_status: card.request.develop_status,
+    });
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 3 } }),
@@ -143,8 +126,7 @@ export default function KanbanBoard() {
     let position: number;
 
     if (STAGES.includes(over.id as Stage)) {
-      const lastPos = targetCards.length > 0 ? targetCards[targetCards.length - 1].position : 0;
-      position = lastPos + 1000;
+      position = getAppendPosition(targetStage);
     } else {
       const overIndex = targetCards.findIndex((c) => c.id === over.id);
       if (overIndex === 0) {
@@ -166,6 +148,11 @@ export default function KanbanBoard() {
     moveCard.mutate({ id: cardId, stage: targetStage, position });
   };
 
+  const getAppendPosition = (stage: Stage) => {
+    const cards = board?.[stage] ?? [];
+    return cards.length > 0 ? cards[cards.length - 1].position + 1000 : 1000;
+  };
+
   const [saving, setSaving] = useState(false);
 
   const handleEditSubmit = async () => {
@@ -176,6 +163,7 @@ export default function KanbanBoard() {
       ...requestValues,
       start_date: requestValues.start_date?.format("YYYY-MM-DD") || null,
       due_date: requestValues.due_date?.format("YYYY-MM-DD") || null,
+      release_date: requestValues.release_date?.format("YYYY-MM-DD") || null,
     };
     setSaving(true);
     try {
@@ -206,19 +194,9 @@ export default function KanbanBoard() {
     );
   };
 
-  const handleViewChange = (val: ViewMode) => {
-    const params: Record<string, string> = {};
-    if (teamId) params.team_id = String(teamId);
-    if (val !== "kanban") params.view = val;
-    setSearchParams(params);
-  };
-
   const handleTeamChange = (val: string | number) => {
     const v = String(val);
-    const params: Record<string, string> = {};
-    if (v !== "all") params.team_id = v;
-    if (viewMode !== "kanban") params.view = viewMode;
-    setSearchParams(params);
+    setTeamId(v === "all" ? null : Number(v));
   };
 
   const teamOptions = useMemo(
@@ -236,16 +214,18 @@ export default function KanbanBoard() {
           開發看板
         </Title>
         <Segmented
+          className="seg-white"
           value={viewMode}
-          onChange={(val) => handleViewChange(val as ViewMode)}
+          onChange={(val) => setViewMode(val as ViewMode)}
           options={[
             { value: "kanban", icon: <ProjectOutlined />, label: "看板" },
             { value: "gantt", icon: <BarChartOutlined />, label: "甘特圖" },
           ]}
         />
       </div>
-      <div style={{ marginBottom: 16, padding: "8px 12px", background: "#f5f5f5", borderRadius: 8 }}>
+      <div style={{ marginBottom: 16 }}>
         <Segmented
+          className="seg-white"
           value={teamId ? String(teamId) : "all"}
           onChange={handleTeamChange}
           options={teamOptions}
@@ -267,7 +247,7 @@ export default function KanbanBoard() {
                 key={stage}
                 stage={stage}
                 cards={board[stage]}
-                onEditCard={setEditingCard}
+                onEditCard={handleOpenCard}
               />
             ))}
           </div>
@@ -295,32 +275,76 @@ export default function KanbanBoard() {
         open={!!editingCard}
         onClose={() => setEditingCard(null)}
         width={560}
+        extra={editingCard && (
+          <Button type="primary" onClick={handleEditSubmit} loading={saving}>
+            更新
+          </Button>
+        )}
       >
         {editingCard && (
           <>
-            <Text type="secondary" strong>卡片資訊</Text>
-            <Form form={cardForm} layout="vertical" style={{ marginTop: 8 }}>
+            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+              {([
+                { stage: "todo" as Stage, label: "待處理" },
+                { stage: "in_progress" as Stage, label: "進行" },
+                { stage: "review" as Stage, label: "審查" },
+                { stage: "done" as Stage, label: "完成" },
+              ] as const).map(({ stage, label }) => (
+                <Button
+                  key={stage}
+                  type={editingCard.stage === stage ? "primary" : "default"}
+                  disabled={editingCard.stage === stage}
+                  onClick={async () => {
+                    const cardValues = await cardForm.validateFields();
+                    await updateCard.mutateAsync({ id: editingCard.id, assignee: cardValues.assignee });
+                    moveCard.mutate(
+                      { id: editingCard.id, stage, position: getAppendPosition(stage) },
+                      {
+                        onSuccess: () => {
+                          message.success(`已移至${label}`);
+                          setEditingCard(null);
+                        },
+                      }
+                    );
+                  }}
+                >
+                  {label}
+                </Button>
+              ))}
+              <Button
+                danger
+                disabled={editingCard.stage !== "done"}
+                onClick={handleArchive}
+              >
+                結案
+              </Button>
+            </div>
+            <Form form={cardForm} layout="vertical">
               <div style={{ display: "flex", gap: 16 }}>
                 <Form.Item name="assignee" label="負責人" style={{ flex: 1 }}>
                   <Input />
                 </Form.Item>
-                <Form.Item name="stage" label="階段" style={{ flex: 1 }}>
-                  <Select options={stageOptions} />
+                <Form.Item name="ticket_url" label="關聯工單" style={{ flex: 1 }}>
+                  <Input placeholder="輸入工單網址" />
                 </Form.Item>
               </div>
             </Form>
-            <Divider />
-            <Text type="secondary" strong>需求內容</Text>
-            <Form form={requestForm} layout="vertical" style={{ marginTop: 8 }}>
-              <Form.Item name="title" label="標題" rules={[{ required: true, message: "請輸入標題" }]}>
-                <Input />
-              </Form.Item>
+            <Divider style={{ margin: "8px 0" }} />
+            <Form form={requestForm} layout="vertical">
               <div style={{ display: "flex", gap: 16 }}>
+                <Form.Item name="title" label="標題" rules={[{ required: true, message: "請輸入標題" }]} style={{ flex: 1 }}>
+                  <Input />
+                </Form.Item>
                 <Form.Item name="requester" label="提出人" rules={[{ required: true, message: "請輸入提出人" }]} style={{ flex: 1 }}>
                   <Input />
                 </Form.Item>
+              </div>
+              <div style={{ display: "flex", gap: 16 }}>
                 <Form.Item name="priority" label="優先級" style={{ flex: 1 }}>
                   <Select options={priorityOptions} />
+                </Form.Item>
+                <Form.Item name="risk" label="風險" style={{ flex: 1 }}>
+                  <Select options={riskOptions} allowClear placeholder="選擇風險等級" />
                 </Form.Item>
               </div>
               <div style={{ display: "flex", gap: 16 }}>
@@ -331,26 +355,22 @@ export default function KanbanBoard() {
                   <DatePicker style={{ width: "100%" }} />
                 </Form.Item>
               </div>
+              <div style={{ display: "flex", gap: 16 }}>
+                <Form.Item name="develop_status" label="開發狀態" style={{ flex: 1 }}>
+                  <Select options={developStatusOptions} allowClear placeholder="選擇狀態" />
+                </Form.Item>
+                <Form.Item name="release_date" label="上線日" style={{ flex: 1 }}>
+                  <DatePicker style={{ width: "100%" }} />
+                </Form.Item>
+              </div>
               <Form.Item name="description" label="描述">
-                <TextArea rows={3} />
+                <TextArea rows={2} />
               </Form.Item>
               <Form.Item name="business_impact" label="業務影響">
-                <TextArea rows={3} />
+                <TextArea rows={2} />
               </Form.Item>
             </Form>
 
-            <div style={{ display: "flex", gap: 8 }}>
-              <Button type="primary" onClick={handleEditSubmit} loading={saving}>
-                儲存
-              </Button>
-              {editingCard.request.status === "done" && (
-                <Button onClick={handleArchive}>結案歸檔</Button>
-              )}
-            </div>
-
-            <Divider />
-            <Title level={5} style={{ marginBottom: 12 }}>評論</Title>
-            <CommentSection requestId={editingCard.request.id} />
           </>
         )}
       </Drawer>

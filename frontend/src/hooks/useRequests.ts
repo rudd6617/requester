@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "../api/client";
 import type { KanbanBoard, Request, Stage } from "../types";
 
@@ -68,6 +68,7 @@ export function useKanbanCards(teamId: number | null) {
   return useQuery({
     queryKey: ["kanban", teamId],
     queryFn: () => api.fetchKanbanCards(teamId),
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -85,7 +86,7 @@ export function useCreateKanbanCard() {
 export function useUpdateKanbanCard() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: number; assignee?: string; stage?: string }) =>
+    mutationFn: ({ id, ...data }: { id: number; assignee?: string; ticket_url?: string; stage?: string }) =>
       api.updateKanbanCard(id, data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["kanban"] }),
   });

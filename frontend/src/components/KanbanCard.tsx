@@ -4,6 +4,7 @@ import { Card, Typography } from "antd";
 import { useRef } from "react";
 import type { KanbanCard as KanbanCardType } from "../types";
 import PriorityBadge from "./PriorityBadge";
+import RiskBadge from "./RiskBadge";
 
 const { Text } = Typography;
 
@@ -49,6 +50,7 @@ export default function KanbanCard({ card, onEdit }: Props) {
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           <PriorityBadge priority={card.request.priority} />
+          {card.request.risk && <RiskBadge risk={card.request.risk} />}
           {card.assignee && <Text type="secondary">{card.assignee}</Text>}
         </div>
       </Card>
