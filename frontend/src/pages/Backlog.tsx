@@ -1,7 +1,6 @@
 import {
   Button,
   DatePicker,
-  Divider,
   Drawer,
   Form,
   Input,
@@ -9,13 +8,15 @@ import {
   Select,
   Space,
   Table,
+  Tag,
   Typography,
 } from "antd";
 import type { TablePaginationConfig, SorterResult } from "antd/es/table/interface";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
-import CommentSection from "../components/CommentSection";
+import DevelopStatusBadge from "../components/DevelopStatusBadge";
 import PriorityBadge from "../components/PriorityBadge";
+import RiskBadge from "../components/RiskBadge";
 import StatusBadge from "../components/StatusBadge";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -24,24 +25,19 @@ import {
   useTeams,
   useUpdateRequest,
 } from "../hooks/useRequests";
-import type { Priority, Request, Status } from "../types";
+import { developStatusOptions, priorityOptions, riskOptions } from "../constants";
+import type { Priority, DevelopStatus, Request, Risk, Status } from "../types";
 
-const { Title } = Typography;
 const { TextArea } = Input;
 
-const statusOptions = [
-  { value: "new", label: "新需求" },
-  { value: "assigned", label: "已指派" },
-  { value: "done", label: "已完成" },
-  { value: "cancelled", label: "已取消" },
-  { value: "archived", label: "已結案" },
-];
+const { Title } = Typography;
 
-const priorityOptions = [
-  { value: "critical", label: "緊急" },
-  { value: "high", label: "高" },
-  { value: "medium", label: "中" },
-  { value: "low", label: "低" },
+const statusOptions = [
+  { value: "new", label: <Tag color="blue">新需求</Tag> },
+  { value: "assigned", label: <Tag color="cyan">已指派</Tag> },
+  { value: "done", label: <Tag color="green">已完成</Tag> },
+  { value: "cancelled", label: <Tag color="red">已取消</Tag> },
+  { value: "archived", label: <Tag>已結案</Tag> },
 ];
 
 export default function Backlog() {
@@ -52,6 +48,7 @@ export default function Backlog() {
     page_size: 20,
     sort: "created_at",
     order: "desc",
+    exclude_status: "archived",
   });
   const { data, isLoading } = useRequests(filters);
   const updateRequest = useUpdateRequest();
@@ -72,11 +69,17 @@ export default function Backlog() {
         business_impact: detailRequest.business_impact,
         requester: detailRequest.requester,
         priority: detailRequest.priority,
+        status: detailRequest.status,
+        risk: detailRequest.risk,
         start_date: detailRequest.start_date ? dayjs(detailRequest.start_date) : null,
         due_date: detailRequest.due_date ? dayjs(detailRequest.due_date) : null,
+        release_date: detailRequest.release_date ? dayjs(detailRequest.release_date) : null,
+        develop_status: detailRequest.develop_status,
       });
+      const matchedTeam = teams?.find((t) => t.name === detailRequest.assigned_team);
+      setSelectedTeam(matchedTeam?.id ?? null);
     }
-  }, [detailRequest, drawerForm]);
+  }, [detailRequest, drawerForm, teams]);
 
   const handleUpdate = () => {
     if (!detailRequest) return;
@@ -85,6 +88,7 @@ export default function Backlog() {
         ...values,
         start_date: values.start_date?.format("YYYY-MM-DD") || null,
         due_date: values.due_date?.format("YYYY-MM-DD") || null,
+        release_date: values.release_date?.format("YYYY-MM-DD") || null,
       };
       updateRequest.mutate(
         { id: detailRequest.id, ...payload },
@@ -99,21 +103,7 @@ export default function Backlog() {
     });
   };
 
-  const handleCancel = () => {
-    if (!detailRequest) return;
-    updateRequest.mutate(
-      { id: detailRequest.id, status: "cancelled" },
-      {
-        onSuccess: () => {
-          message.success("需求已取消");
-          setDetailRequest((prev) => (prev ? { ...prev, status: "cancelled" } : null));
-        },
-        onError: () => message.error("取消失敗"),
-      }
-    );
-  };
-
-  const handleArchive = () => {
+const handleArchive = () => {
     if (!detailRequest) return;
     updateRequest.mutate(
       { id: detailRequest.id, status: "archived" },
@@ -173,6 +163,14 @@ export default function Backlog() {
       } else {
         delete next[key];
       }
+      // 手動選 status 時移除 exclude_status，清除時恢復預設排除
+      if (key === "status") {
+        if (value) {
+          delete next.exclude_status;
+        } else {
+          next.exclude_status = "archived";
+        }
+      }
       return next;
     });
   };
@@ -181,6 +179,13 @@ export default function Backlog() {
     { title: "ID", dataIndex: "id", width: 80, sorter: true },
     { title: "標題", dataIndex: "title", ellipsis: true, sorter: true },
     { title: "提出人", dataIndex: "requester", width: 100, sorter: true },
+    {
+      title: "建立日期",
+      dataIndex: "created_at",
+      width: 120,
+      sorter: true,
+      render: (d: string) => dayjs(d).format("YYYY-MM-DD"),
+    },
     {
       title: "優先級",
       dataIndex: "priority",
@@ -196,17 +201,30 @@ export default function Backlog() {
       render: (s: Status) => <StatusBadge status={s} />,
     },
     {
+      title: "風險",
+      dataIndex: "risk",
+      width: 80,
+      sorter: true,
+      render: (r: Risk | null) => r ? <RiskBadge risk={r} /> : "-",
+    },
+    {
       title: "指派團隊",
       dataIndex: "assigned_team",
       width: 120,
       render: (team: string | null) => team || "-",
     },
     {
-      title: "建立日期",
-      dataIndex: "created_at",
+      title: "開發狀態",
+      dataIndex: "develop_status",
+      width: 100,
+      render: (s: DevelopStatus | null) => s ? <DevelopStatusBadge status={s} /> : "-",
+    },
+    {
+      title: "上線日期",
+      dataIndex: "release_date",
       width: 120,
       sorter: true,
-      render: (d: string) => dayjs(d).format("YYYY-MM-DD"),
+      render: (d: string | null) => d ? dayjs(d).format("YYYY-MM-DD") : "-",
     },
   ];
 
@@ -262,27 +280,42 @@ export default function Backlog() {
         open={!!detailRequest}
         onClose={() => { setDetailRequest(null); setSelectedTeam(null); }}
         width={560}
+        extra={detailRequest && isRD && (
+          <Space>
+            {detailRequest.status === "done" && (
+              <Button onClick={handleArchive}>結案歸檔</Button>
+            )}
+            <Button type="primary" onClick={handleUpdate} loading={updateRequest.isPending}>
+              更新
+            </Button>
+          </Space>
+        )}
       >
         {detailRequest && (
           <>
             <Form form={drawerForm} layout="vertical">
-              <Form.Item name="title" label="標題" rules={[{ required: true, message: "請輸入標題" }]}>
-                <Input />
-              </Form.Item>
               <div style={{ display: "flex", gap: 16 }}>
+                <Form.Item name="title" label="標題" rules={[{ required: true, message: "請輸入標題" }]} style={{ flex: 1 }}>
+                  <Input />
+                </Form.Item>
                 <Form.Item name="requester" label="提出人" rules={[{ required: true, message: "請輸入提出人" }]} style={{ flex: 1 }}>
                   <Input />
                 </Form.Item>
+              </div>
+              <div style={{ display: "flex", gap: 16 }}>
                 <Form.Item name="priority" label="優先級" style={{ flex: 1 }}>
                   <Select options={priorityOptions} />
                 </Form.Item>
+                <Form.Item name="status" label="狀態" style={{ flex: 1 }}>
+                  <Select options={statusOptions} />
+                </Form.Item>
               </div>
               <div style={{ display: "flex", gap: 16 }}>
-                <Form.Item label="狀態" style={{ flex: 1 }}>
-                  <StatusBadge status={detailRequest.status} />
+                <Form.Item name="risk" label="風險" style={{ flex: 1 }}>
+                  <Select options={riskOptions} allowClear placeholder="選擇風險等級" />
                 </Form.Item>
-                {isRD && (detailRequest.status === "new" || detailRequest.status === "assigned") && (
-                  <Form.Item label="指派團隊" style={{ flex: 1 }}>
+                <Form.Item label="指派團隊" style={{ flex: 1 }}>
+                  {isRD && (detailRequest.status === "new" || detailRequest.status === "assigned") ? (
                     <Space.Compact style={{ width: "100%" }}>
                       <Select
                         placeholder="選擇團隊"
@@ -295,8 +328,10 @@ export default function Backlog() {
                         {detailRequest.status === "assigned" ? "重新指派" : "指派"}
                       </Button>
                     </Space.Compact>
-                  </Form.Item>
-                )}
+                  ) : (
+                    <span>{detailRequest.assigned_team || "-"}</span>
+                  )}
+                </Form.Item>
               </div>
               <div style={{ display: "flex", gap: 16 }}>
                 <Form.Item name="start_date" label="開始日" style={{ flex: 1 }}>
@@ -306,29 +341,22 @@ export default function Backlog() {
                   <DatePicker style={{ width: "100%" }} />
                 </Form.Item>
               </div>
+              <div style={{ display: "flex", gap: 16 }}>
+                <Form.Item name="develop_status" label="開發狀態" style={{ flex: 1 }}>
+                  <Select options={developStatusOptions} allowClear placeholder="選擇狀態" />
+                </Form.Item>
+                <Form.Item name="release_date" label="上線日" style={{ flex: 1 }}>
+                  <DatePicker style={{ width: "100%" }} />
+                </Form.Item>
+              </div>
               <Form.Item name="description" label="描述">
-                <TextArea rows={3} />
+                <TextArea rows={2} />
               </Form.Item>
               <Form.Item name="business_impact" label="業務影響">
-                <TextArea rows={3} />
+                <TextArea rows={2} />
               </Form.Item>
             </Form>
 
-            <Space>
-              <Button type="primary" onClick={handleUpdate} loading={updateRequest.isPending}>
-                更新
-              </Button>
-              {isRD && detailRequest.status === "new" && (
-                <Button danger onClick={handleCancel}>取消需求</Button>
-              )}
-              {isRD && detailRequest.status === "done" && (
-                <Button onClick={handleArchive}>結案歸檔</Button>
-              )}
-            </Space>
-
-            <Divider />
-            <Title level={5} style={{ marginBottom: 12 }}>評論</Title>
-            <CommentSection requestId={detailRequest.id} />
           </>
         )}
       </Drawer>
