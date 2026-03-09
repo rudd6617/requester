@@ -37,9 +37,12 @@ requests_data = [
         "business_impact": "High demand from enterprise clients",
         "requester": "Alice",
         "priority": "high",
+        "risk": "medium",
         "status": "assigned",
         "start_date": today - timedelta(days=3),
         "due_date": today + timedelta(days=11),
+        "release_date": today + timedelta(days=14),
+        "develop_status": "todo",
     },
     {
         "title": "Fix login timeout issue",
@@ -47,9 +50,12 @@ requests_data = [
         "business_impact": "Affecting all users, support tickets increasing",
         "requester": "Bob",
         "priority": "critical",
+        "risk": "high",
         "status": "assigned",
         "start_date": today - timedelta(days=1),
         "due_date": today + timedelta(days=4),
+        "release_date": today + timedelta(days=7),
+        "develop_status": "todo",
     },
     {
         "title": "Redesign dashboard",
@@ -77,9 +83,12 @@ requests_data = [
         "business_impact": "Performance directly impacts conversion rate",
         "requester": "Eve",
         "priority": "high",
+        "risk": "low",
         "status": "assigned",
         "start_date": today + timedelta(days=2),
         "due_date": today + timedelta(days=16),
+        "release_date": today + timedelta(days=21),
+        "develop_status": "todo",
     },
 ]
 
