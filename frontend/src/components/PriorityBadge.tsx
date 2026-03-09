@@ -9,10 +9,10 @@ const colorMap: Record<Priority, string> = {
 };
 
 const labelMap: Record<Priority, string> = {
-  critical: "緊急",
-  high: "高",
-  medium: "中",
-  low: "低",
+  critical: "緊急優先",
+  high: "高優先",
+  medium: "中優先",
+  low: "低優先",
 };
 
 export default function PriorityBadge({ priority }: { priority: Priority }) {

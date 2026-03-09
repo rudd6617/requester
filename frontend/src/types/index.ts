@@ -1,5 +1,7 @@
 export type Priority = "critical" | "high" | "medium" | "low";
 export type Status = "new" | "assigned" | "done" | "cancelled" | "archived";
+export type Risk = "high" | "medium" | "low";
+export type DevelopStatus = "todo" | "in_progress" | "review" | "done";
 export type Stage = "todo" | "in_progress" | "review" | "done";
 
 export interface Team {
@@ -17,8 +19,11 @@ export interface Request {
   requester: string;
   priority: Priority;
   status: Status;
+  risk: Risk | null;
   start_date: string | null;
   due_date: string | null;
+  release_date: string | null;
+  develop_status: DevelopStatus | null;
   created_at: string;
   updated_at: string;
   assigned_team: string | null;
@@ -36,6 +41,7 @@ export interface KanbanCard {
   request_id: number;
   team_id: number;
   assignee: string;
+  ticket_url: string;
   stage: Stage;
   position: number;
   created_at: string;

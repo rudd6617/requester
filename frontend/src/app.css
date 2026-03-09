@@ -1,0 +1,14 @@
+.seg-white.ant-segmented {
+  background: #fff !important;
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.seg-white.ant-segmented .ant-segmented-item-selected {
+  color: #1677ff !important;
+}
+
+.seg-white.ant-segmented .ant-segmented-thumb {
+  background: #e6f4ff !important;
+  border-radius: 6px;
+}
