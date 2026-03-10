@@ -55,9 +55,9 @@ make dev
 | 變數                 | 說明              | 預設值                                              |
 | -------------------- | ----------------- | --------------------------------------------------- |
 | `MYSQL_ROOT_PASSWORD`| MySQL root 密碼   | `root`                                              |
-| `MYSQL_DATABASE`     | 資料庫名稱        | `request_sigknow`                                   |
+| `MYSQL_DATABASE`     | 資料庫名稱        | `requester`                                         |
 | `FRONTEND_PORT`      | 前端對外 port      | `3000`                                              |
-| `DATABASE_URL`       | SQLAlchemy 連線字串 | `mysql+pymysql://root:root@mysql:3306/request_sigknow` |
+| `DATABASE_URL`       | SQLAlchemy 連線字串 | `mysql+pymysql://root:root@mysql:3306/requester`    |
 | `SECRET_KEY`         | JWT 簽名密鑰       | `dev-secret-change-in-production`                   |
 
 ## 專案結構
