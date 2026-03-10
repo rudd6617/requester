@@ -53,10 +53,6 @@ class Request(Base):
     start_date = Column(Date, nullable=True)
     due_date = Column(Date, nullable=True)
     release_date = Column(Date, nullable=True)
-    develop_status = Column(
-        Enum("todo", "in_progress", "review", "done", name="develop_status_enum"),
-        nullable=True,
-    )
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -109,7 +105,7 @@ class KanbanCard(Base):
     assignee = Column(String(100), default="")
     ticket_url = Column(String(500), default="")
     stage = Column(
-        Enum("todo", "in_progress", "review", "done", name="stage_enum"),
+        Enum("todo", "in_progress", "done", "release", "archived", name="stage_enum"),
         default="todo",
         nullable=False,
     )

@@ -1,6 +1,6 @@
 import { Tag } from "antd";
 import type { ReactNode } from "react";
-import type { Priority, DevelopStatus, Risk, Stage } from "./types";
+import type { Priority, Risk, Stage } from "./types";
 
 type Option<T> = { value: T; label: ReactNode };
 
@@ -18,10 +18,9 @@ export const riskOptions: Option<Risk>[] = [
 ];
 
 export const stageOptions: Option<Stage>[] = [
-  { value: "todo", label: <Tag>待處理</Tag> },
+  { value: "todo", label: <Tag>待辦</Tag> },
   { value: "in_progress", label: <Tag color="processing">進行中</Tag> },
-  { value: "review", label: <Tag color="warning">審查中</Tag> },
   { value: "done", label: <Tag color="green">已完成</Tag> },
+  { value: "release", label: <Tag color="warning">待上線</Tag> },
+  { value: "archived", label: <Tag color="default">結案</Tag> },
 ];
-
-export const developStatusOptions = stageOptions as Option<DevelopStatus>[];

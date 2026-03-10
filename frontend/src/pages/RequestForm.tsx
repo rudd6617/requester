@@ -15,7 +15,7 @@ export default function RequestForm() {
     createRequest.mutate(values, {
       onSuccess: () => {
         message.success("需求已提交");
-        navigate("/backlog");
+        navigate("/request-pool");
       },
       onError: () => message.error("提交失敗"),
     });

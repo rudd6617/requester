@@ -63,6 +63,7 @@ def list_requests(
 
     for item in items:
         item.assigned_team = item.kanban_card.team.name if item.kanban_card else None
+        item.stage = item.kanban_card.stage if item.kanban_card else None
 
     return RequestListOut(items=items, total=total, page=page, page_size=page_size)
 
@@ -78,6 +79,7 @@ def get_request(request_id: int, db: Session = Depends(get_db)):
     if not req:
         raise HTTPException(404, "Request not found")
     req.assigned_team = req.kanban_card.team.name if req.kanban_card else None
+    req.stage = req.kanban_card.stage if req.kanban_card else None
     return req
 
 

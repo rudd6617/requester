@@ -42,7 +42,6 @@ requests_data = [
         "start_date": today - timedelta(days=3),
         "due_date": today + timedelta(days=11),
         "release_date": today + timedelta(days=14),
-        "develop_status": "todo",
     },
     {
         "title": "Fix login timeout issue",
@@ -55,7 +54,6 @@ requests_data = [
         "start_date": today - timedelta(days=1),
         "due_date": today + timedelta(days=4),
         "release_date": today + timedelta(days=7),
-        "develop_status": "todo",
     },
     {
         "title": "Redesign dashboard",
@@ -88,7 +86,6 @@ requests_data = [
         "start_date": today + timedelta(days=2),
         "due_date": today + timedelta(days=16),
         "release_date": today + timedelta(days=21),
-        "develop_status": "todo",
     },
 ]
 
@@ -114,7 +111,7 @@ for i, req in enumerate(approved):
             request_id=req.id,
             team_id=teams[i % len(teams)].id,
             assignee=["Frank", "Grace", "Heidi"][i % 3],
-            stage=["todo", "in_progress", "review"][i % 3],
+            stage=["todo", "in_progress", "done"][i % 3],
             position=(i + 1) * 1000,
         )
         db.add(card)

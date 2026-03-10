@@ -9,7 +9,7 @@ import TeamManage from "./pages/TeamManage";
 function RequireAuth() {
   const { isRD, loading } = useAuth();
   if (loading) return null;
-  return isRD ? <Outlet /> : <Navigate to="/backlog" replace />;
+  return isRD ? <Outlet /> : <Navigate to="/request-pool" replace />;
 }
 
 export default function App() {
@@ -19,12 +19,12 @@ export default function App() {
         <Routes>
           <Route element={<Layout />}>
             <Route path="/requests/new" element={<RequestForm />} />
-            <Route path="/backlog" element={<Backlog />} />
+            <Route path="/request-pool" element={<Backlog />} />
             <Route element={<RequireAuth />}>
               <Route path="/kanban" element={<KanbanBoard />} />
               <Route path="/teams" element={<TeamManage />} />
             </Route>
-            <Route path="*" element={<Navigate to="/backlog" replace />} />
+            <Route path="*" element={<Navigate to="/request-pool" replace />} />
           </Route>
         </Routes>
       </BrowserRouter>

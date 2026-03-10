@@ -26,18 +26,12 @@ class Risk(str, Enum):
     low = "low"
 
 
-class DevelopStatus(str, Enum):
-    todo = "todo"
-    in_progress = "in_progress"
-    review = "review"
-    done = "done"
-
-
 class Stage(str, Enum):
     todo = "todo"
     in_progress = "in_progress"
-    review = "review"
     done = "done"
+    release = "release"
+    archived = "archived"
 
 
 # --- Team ---
@@ -75,7 +69,6 @@ class RequestCreate(BaseModel):
     start_date: Optional[date] = None
     due_date: Optional[date] = None
     release_date: Optional[date] = None
-    develop_status: Optional[DevelopStatus] = None
 
 
 class RequestUpdate(BaseModel):
@@ -88,7 +81,6 @@ class RequestUpdate(BaseModel):
     start_date: Optional[date] = None
     due_date: Optional[date] = None
     release_date: Optional[date] = None
-    develop_status: Optional[DevelopStatus] = None
 
 
 class RequestOut(BaseModel):
@@ -103,7 +95,7 @@ class RequestOut(BaseModel):
     start_date: Optional[date] = None
     due_date: Optional[date] = None
     release_date: Optional[date] = None
-    develop_status: Optional[DevelopStatus] = None
+    stage: Optional[Stage] = None
     created_at: datetime
     updated_at: datetime
     assigned_team: Optional[str] = None
@@ -207,5 +199,5 @@ class KanbanCardOut(BaseModel):
 class KanbanBoardOut(BaseModel):
     todo: list[KanbanCardOut]
     in_progress: list[KanbanCardOut]
-    review: list[KanbanCardOut]
     done: list[KanbanCardOut]
+    release: list[KanbanCardOut]

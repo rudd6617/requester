@@ -14,7 +14,7 @@ import {
 import type { TablePaginationConfig, SorterResult } from "antd/es/table/interface";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
-import DevelopStatusBadge from "../components/DevelopStatusBadge";
+import StageBadge from "../components/StageBadge";
 import PriorityBadge from "../components/PriorityBadge";
 import RiskBadge from "../components/RiskBadge";
 import StatusBadge from "../components/StatusBadge";
@@ -25,8 +25,8 @@ import {
   useTeams,
   useUpdateRequest,
 } from "../hooks/useRequests";
-import { developStatusOptions, priorityOptions, riskOptions } from "../constants";
-import type { Priority, DevelopStatus, Request, Risk, Status } from "../types";
+import { priorityOptions, riskOptions } from "../constants";
+import type { Priority, Request, Risk, Stage, Status } from "../types";
 
 const { TextArea } = Input;
 
@@ -74,7 +74,6 @@ export default function Backlog() {
         start_date: detailRequest.start_date ? dayjs(detailRequest.start_date) : null,
         due_date: detailRequest.due_date ? dayjs(detailRequest.due_date) : null,
         release_date: detailRequest.release_date ? dayjs(detailRequest.release_date) : null,
-        develop_status: detailRequest.develop_status,
       });
       const matchedTeam = teams?.find((t) => t.name === detailRequest.assigned_team);
       setSelectedTeam(matchedTeam?.id ?? null);
@@ -101,20 +100,6 @@ export default function Backlog() {
         }
       );
     });
-  };
-
-const handleArchive = () => {
-    if (!detailRequest) return;
-    updateRequest.mutate(
-      { id: detailRequest.id, status: "archived" },
-      {
-        onSuccess: () => {
-          message.success("需求已結案");
-          setDetailRequest((prev) => (prev ? { ...prev, status: "archived" as const } : null));
-        },
-        onError: () => message.error("結案失敗"),
-      }
-    );
   };
 
   const handleAssign = () => {
@@ -215,9 +200,9 @@ const handleArchive = () => {
     },
     {
       title: "開發狀態",
-      dataIndex: "develop_status",
+      dataIndex: "stage",
       width: 100,
-      render: (s: DevelopStatus | null) => s ? <DevelopStatusBadge status={s} /> : "-",
+      render: (s: Stage | null) => s ? <StageBadge stage={s} /> : "-",
     },
     {
       title: "上線日期",
@@ -281,14 +266,9 @@ const handleArchive = () => {
         onClose={() => { setDetailRequest(null); setSelectedTeam(null); }}
         width={560}
         extra={detailRequest && isRD && (
-          <Space>
-            {detailRequest.status === "done" && (
-              <Button onClick={handleArchive}>結案歸檔</Button>
-            )}
-            <Button type="primary" onClick={handleUpdate} loading={updateRequest.isPending}>
-              更新
-            </Button>
-          </Space>
+          <Button type="primary" onClick={handleUpdate} loading={updateRequest.isPending}>
+            更新
+          </Button>
         )}
       >
         {detailRequest && (
@@ -325,12 +305,15 @@ const handleArchive = () => {
                         options={teams?.map((t) => ({ value: t.id, label: t.name }))}
                       />
                       <Button type="primary" onClick={handleAssign} loading={createCard.isPending} disabled={!selectedTeam}>
-                        {detailRequest.status === "assigned" ? "重新指派" : "指派"}
+                        指派
                       </Button>
                     </Space.Compact>
                   ) : (
                     <span>{detailRequest.assigned_team || "-"}</span>
                   )}
+                </Form.Item>
+                <Form.Item label="開發狀態" style={{ flex: 1 }}>
+                  {detailRequest.stage ? <StageBadge stage={detailRequest.stage} /> : "-"}
                 </Form.Item>
               </div>
               <div style={{ display: "flex", gap: 16 }}>
@@ -339,11 +322,6 @@ const handleArchive = () => {
                 </Form.Item>
                 <Form.Item name="due_date" label="截止日" style={{ flex: 1 }}>
                   <DatePicker style={{ width: "100%" }} />
-                </Form.Item>
-              </div>
-              <div style={{ display: "flex", gap: 16 }}>
-                <Form.Item name="develop_status" label="開發狀態" style={{ flex: 1 }}>
-                  <Select options={developStatusOptions} allowClear placeholder="選擇狀態" />
                 </Form.Item>
                 <Form.Item name="release_date" label="上線日" style={{ flex: 1 }}>
                   <DatePicker style={{ width: "100%" }} />

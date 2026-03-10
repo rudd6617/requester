@@ -25,7 +25,7 @@ export default function Layout() {
   const menuItems = useMemo(() => {
     const items = [
       { key: "/requests/new", icon: <FormOutlined />, label: "新需求" },
-      { key: "/backlog", icon: <AppstoreOutlined />, label: "需求池" },
+      { key: "/request-pool", icon: <AppstoreOutlined />, label: "需求池" },
     ];
     if (isRD) {
       items.push(

@@ -1,8 +1,8 @@
 export type Priority = "critical" | "high" | "medium" | "low";
 export type Status = "new" | "assigned" | "done" | "cancelled" | "archived";
 export type Risk = "high" | "medium" | "low";
-export type DevelopStatus = "todo" | "in_progress" | "review" | "done";
-export type Stage = "todo" | "in_progress" | "review" | "done";
+export type ColumnStage = "todo" | "in_progress" | "done" | "release";
+export type Stage = ColumnStage | "archived";
 
 export interface Team {
   id: number;
@@ -23,7 +23,7 @@ export interface Request {
   start_date: string | null;
   due_date: string | null;
   release_date: string | null;
-  develop_status: DevelopStatus | null;
+  stage: Stage | null;
   created_at: string;
   updated_at: string;
   assigned_team: string | null;
@@ -49,12 +49,7 @@ export interface KanbanCard {
   request: Request;
 }
 
-export interface KanbanBoard {
-  todo: KanbanCard[];
-  in_progress: KanbanCard[];
-  review: KanbanCard[];
-  done: KanbanCard[];
-}
+export type KanbanBoard = Record<ColumnStage, KanbanCard[]>;
 
 export interface User {
   id: number;

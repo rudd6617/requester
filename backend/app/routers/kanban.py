@@ -47,7 +47,6 @@ def create_card(body: KanbanCardCreate, db: Session = Depends(get_db), _: User =
         db.add(card)
 
     req.status = "assigned"
-    req.develop_status = "todo"
     db.commit()
     db.refresh(card)
     return card
@@ -60,9 +59,10 @@ def list_cards(team_id: int | None = Query(None), db: Session = Depends(get_db))
         q = q.filter(KanbanCard.team_id == team_id)
     cards = q.order_by(KanbanCard.position).all()
 
-    board = {"todo": [], "in_progress": [], "review": [], "done": []}
+    board = {"todo": [], "in_progress": [], "done": [], "release": []}
     for card in cards:
-        board[card.stage].append(card)
+        if card.stage in board:
+            board[card.stage].append(card)
     return board
 
 
@@ -108,5 +108,11 @@ def _sync_request_status(card: KanbanCard, db: Session) -> None:
     req = db.get(Request, card.request_id)
     if not req or req.status == "cancelled":
         return
-    req.status = "done" if card.stage == "done" else "assigned"
-    req.develop_status = card.stage
+    if card.stage == "archived":
+        new_status = "archived"
+    elif card.stage in ("done", "release"):
+        new_status = "done"
+    else:
+        new_status = "assigned"
+    if req.status != new_status:
+        req.status = new_status

@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "../api/client";
-import type { KanbanBoard, Request, Stage } from "../types";
+import type { ColumnStage, KanbanBoard, Request, Stage } from "../types";
 
 // --- Teams ---
 
@@ -111,7 +111,8 @@ export function useMoveKanbanCard() {
         if (!data) continue;
         const newBoard = { ...data };
         let movedCard = null;
-        for (const s of ["todo", "in_progress", "review", "done"] as Stage[]) {
+        const columns: ColumnStage[] = ["todo", "in_progress", "done", "release"];
+        for (const s of columns) {
           const idx = newBoard[s].findIndex((c) => c.id === id);
           if (idx !== -1) {
             movedCard = { ...newBoard[s][idx] };
@@ -122,9 +123,12 @@ export function useMoveKanbanCard() {
         if (movedCard) {
           movedCard.stage = stage;
           movedCard.position = position;
-          newBoard[stage] = [...newBoard[stage], movedCard].sort(
-            (a, b) => a.position - b.position
-          );
+          const col = stage as ColumnStage;
+          if (col in newBoard) {
+            newBoard[col] = [...newBoard[col], movedCard].sort(
+              (a, b) => a.position - b.position
+            );
+          }
           qc.setQueryData(key, newBoard);
         }
       }

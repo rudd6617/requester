@@ -1,20 +1,20 @@
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Typography } from "antd";
-import type { KanbanCard as KanbanCardType, Stage } from "../types";
+import type { ColumnStage, KanbanCard as KanbanCardType } from "../types";
 import KanbanCard from "./KanbanCard";
 
 const { Title } = Typography;
 
-const stageLabels: Record<Stage, string> = {
+const stageLabels: Record<ColumnStage, string> = {
   todo: "待辦",
   in_progress: "進行中",
-  review: "審查中",
   done: "已完成",
+  release: "待上線",
 };
 
 interface Props {
-  stage: Stage;
+  stage: ColumnStage;
   cards: KanbanCardType[];
   onEditCard: (card: KanbanCardType) => void;
 }

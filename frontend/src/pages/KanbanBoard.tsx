@@ -24,13 +24,13 @@ import {
   useUpdateKanbanCard,
   useUpdateRequest,
 } from "../hooks/useRequests";
-import { developStatusOptions, priorityOptions, riskOptions } from "../constants";
-import type { KanbanCard, Stage } from "../types";
+import { priorityOptions, riskOptions } from "../constants";
+import type { ColumnStage, KanbanCard } from "../types";
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
 
-const STAGES: Stage[] = ["todo", "in_progress", "review", "done"];
+const COLUMN_STAGES: ColumnStage[] = ["todo", "in_progress", "done", "release"];
 
 type ViewMode = "kanban" | "gantt";
 
@@ -56,7 +56,7 @@ export default function KanbanBoard() {
 
   const allCards = useMemo(() => {
     if (!board) return [];
-    return [...board.todo, ...board.in_progress, ...board.review, ...board.done];
+    return [...board.todo, ...board.in_progress, ...board.done, ...board.release];
   }, [board]);
 
   const ganttRequests = useMemo(() => allCards.map((c) => c.request), [allCards]);
@@ -82,7 +82,6 @@ export default function KanbanBoard() {
       start_date: card.request.start_date ? dayjs(card.request.start_date) : null,
       due_date: card.request.due_date ? dayjs(card.request.due_date) : null,
       release_date: card.request.release_date ? dayjs(card.request.release_date) : null,
-      develop_status: card.request.develop_status,
     });
   };
 
@@ -91,9 +90,9 @@ export default function KanbanBoard() {
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
   );
 
-  const findCardStage = (cardId: number): Stage | null => {
+  const findCardStage = (cardId: number): ColumnStage | null => {
     if (!board) return null;
-    for (const stage of STAGES) {
+    for (const stage of COLUMN_STAGES) {
       if (board[stage].some((c) => c.id === cardId)) return stage;
     }
     return null;
@@ -110,13 +109,13 @@ export default function KanbanBoard() {
     if (!over || !board) return;
 
     const cardId = active.id as number;
-    let targetStage: Stage;
+    let targetStage: ColumnStage;
 
-    if (STAGES.includes(over.id as Stage)) {
-      targetStage = over.id as Stage;
+    if (COLUMN_STAGES.includes(over.id as ColumnStage)) {
+      targetStage = over.id as ColumnStage;
     } else {
       const overCard = over.data.current?.card as KanbanCard | undefined;
-      targetStage = overCard ? overCard.stage : (findCardStage(over.id as number) ?? "todo");
+      targetStage = (overCard ? overCard.stage : findCardStage(over.id as number) ?? "todo") as ColumnStage;
     }
 
     const sourceStage = findCardStage(cardId);
@@ -125,7 +124,7 @@ export default function KanbanBoard() {
     const targetCards = board[targetStage].filter((c) => c.id !== cardId);
     let position: number;
 
-    if (STAGES.includes(over.id as Stage)) {
+    if (COLUMN_STAGES.includes(over.id as ColumnStage)) {
       position = getAppendPosition(targetStage);
     } else {
       const overIndex = targetCards.findIndex((c) => c.id === over.id);
@@ -148,7 +147,7 @@ export default function KanbanBoard() {
     moveCard.mutate({ id: cardId, stage: targetStage, position });
   };
 
-  const getAppendPosition = (stage: Stage) => {
+  const getAppendPosition = (stage: ColumnStage) => {
     const cards = board?.[stage] ?? [];
     return cards.length > 0 ? cards[cards.length - 1].position + 1000 : 1000;
   };
@@ -182,8 +181,8 @@ export default function KanbanBoard() {
 
   const handleArchive = () => {
     if (!editingCard) return;
-    updateRequest.mutate(
-      { id: editingCard.request.id, status: "archived" },
+    moveCard.mutate(
+      { id: editingCard.id, stage: "archived", position: 0 },
       {
         onSuccess: () => {
           message.success("需求已結案");
@@ -242,7 +241,7 @@ export default function KanbanBoard() {
           onDragEnd={handleDragEnd}
         >
           <div style={{ display: "flex", gap: 16, overflowX: "auto", height: "calc(100vh - 160px)" }}>
-            {STAGES.map((stage) => (
+            {COLUMN_STAGES.map((stage) => (
               <KanbanColumn
                 key={stage}
                 stage={stage}
@@ -283,20 +282,38 @@ export default function KanbanBoard() {
       >
         {editingCard && (
           <>
-            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
               {([
-                { stage: "todo" as Stage, label: "待處理" },
-                { stage: "in_progress" as Stage, label: "進行" },
-                { stage: "review" as Stage, label: "審查" },
-                { stage: "done" as Stage, label: "完成" },
-              ] as const).map(({ stage, label }) => (
+                { stage: "todo" as ColumnStage, label: "待辦" },
+                { stage: "in_progress" as ColumnStage, label: "進行" },
+                { stage: "done" as ColumnStage, label: "完成" },
+                { stage: "release" as ColumnStage, label: "上線" },
+              ]).map(({ stage, label }) => (
                 <Button
                   key={stage}
                   type={editingCard.stage === stage ? "primary" : "default"}
                   disabled={editingCard.stage === stage}
                   onClick={async () => {
+                    if (stage === "release") {
+                      const releaseDate = requestForm.getFieldValue("release_date");
+                      if (!releaseDate) {
+                        message.warning("請先填寫上線日期");
+                        requestForm.scrollToField("release_date");
+                        return;
+                      }
+                    }
                     const cardValues = await cardForm.validateFields();
-                    await updateCard.mutateAsync({ id: editingCard.id, assignee: cardValues.assignee });
+                    const requestValues = await requestForm.validateFields();
+                    const requestPayload = {
+                      ...requestValues,
+                      start_date: requestValues.start_date?.format("YYYY-MM-DD") || null,
+                      due_date: requestValues.due_date?.format("YYYY-MM-DD") || null,
+                      release_date: requestValues.release_date?.format("YYYY-MM-DD") || null,
+                    };
+                    await Promise.all([
+                      updateCard.mutateAsync({ id: editingCard.id, assignee: cardValues.assignee }),
+                      updateRequest.mutateAsync({ id: editingCard.request.id, ...requestPayload }),
+                    ]);
                     moveCard.mutate(
                       { id: editingCard.id, stage, position: getAppendPosition(stage) },
                       {
@@ -313,7 +330,7 @@ export default function KanbanBoard() {
               ))}
               <Button
                 danger
-                disabled={editingCard.stage !== "done"}
+                disabled={editingCard.stage !== "release"}
                 onClick={handleArchive}
               >
                 結案
@@ -353,11 +370,6 @@ export default function KanbanBoard() {
                 </Form.Item>
                 <Form.Item name="due_date" label="截止日" style={{ flex: 1 }}>
                   <DatePicker style={{ width: "100%" }} />
-                </Form.Item>
-              </div>
-              <div style={{ display: "flex", gap: 16 }}>
-                <Form.Item name="develop_status" label="開發狀態" style={{ flex: 1 }}>
-                  <Select options={developStatusOptions} allowClear placeholder="選擇狀態" />
                 </Form.Item>
                 <Form.Item name="release_date" label="上線日" style={{ flex: 1 }}>
                   <DatePicker style={{ width: "100%" }} />
