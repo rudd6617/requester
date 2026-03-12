@@ -8,6 +8,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   isRD: boolean;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -16,6 +17,7 @@ const AuthContext = createContext<AuthContextType>({
   login: async () => {},
   logout: () => {},
   isRD: false,
+  isAdmin: false,
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -48,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isRD: !!user }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, isRD: !!user, isAdmin: user?.is_admin ?? false }}>
       {children}
     </AuthContext.Provider>
   );

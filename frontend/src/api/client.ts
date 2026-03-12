@@ -91,3 +91,10 @@ export const createComment = (data: {
   content: string;
   author?: string;
 }) => api.post<Comment>("/comments", data).then((r) => r.data);
+
+// --- Users (admin) ---
+
+export const fetchUsers = () => api.get<User[]>("/auth/users").then((r) => r.data);
+
+export const updateTeamMembers = (teamId: number, userIds: number[]) =>
+  api.patch(`/teams/${teamId}/members`, { user_ids: userIds });

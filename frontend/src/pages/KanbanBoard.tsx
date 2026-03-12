@@ -13,7 +13,7 @@ import {
 import { BarChartOutlined, ProjectOutlined } from "@ant-design/icons";
 import { Button, Card, DatePicker, Divider, Drawer, Form, Input, message, Segmented, Select, Spin, Typography } from "antd";
 import dayjs from "dayjs";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import GanttView from "../components/GanttView";
 import KanbanColumn from "../components/KanbanColumn";
 import PriorityBadge from "../components/PriorityBadge";
@@ -24,6 +24,7 @@ import {
   useUpdateKanbanCard,
   useUpdateRequest,
 } from "../hooks/useRequests";
+import { useAuth } from "../contexts/AuthContext";
 import { priorityOptions, riskOptions } from "../constants";
 import type { ColumnStage, KanbanCard } from "../types";
 
@@ -41,6 +42,7 @@ const dropAnimation = {
 };
 
 export default function KanbanBoard() {
+  const { isAdmin } = useAuth();
   const [teamId, setTeamId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("kanban");
 
@@ -198,13 +200,19 @@ export default function KanbanBoard() {
     setTeamId(v === "all" ? null : Number(v));
   };
 
-  const teamOptions = useMemo(
-    () => [
-      { value: "all", label: "全部" },
-      ...(teams?.map((t) => ({ value: String(t.id), label: t.name })) || []),
-    ],
-    [teams]
-  );
+  useEffect(() => {
+    if (!isAdmin && teamId === null && teams?.length) {
+      setTeamId(teams[0].id);
+    }
+  }, [teams, isAdmin, teamId]);
+
+  const teamOptions = useMemo(() => {
+    const opts = teams?.map((t) => ({ value: String(t.id), label: t.name })) || [];
+    if (isAdmin) {
+      return [{ value: "all", label: "全部" }, ...opts];
+    }
+    return opts;
+  }, [teams, isAdmin]);
 
   return (
     <>

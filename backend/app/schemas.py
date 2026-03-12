@@ -136,9 +136,19 @@ class UserOut(BaseModel):
     id: int
     username: str
     display_name: str
+    is_admin: bool
+    team_ids: list[int]
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class UserTeamUpdate(BaseModel):
+    team_ids: list[int]
+
+
+class TeamMembersUpdate(BaseModel):
+    user_ids: list[int]
 
 
 # --- Comment ---

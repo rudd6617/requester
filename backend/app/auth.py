@@ -5,7 +5,7 @@ import bcrypt
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from .database import get_db
 from .models import User
@@ -44,7 +44,12 @@ def get_current_user_or_none(
         user_id = int(payload["sub"])
     except (jwt.PyJWTError, ValueError, KeyError):
         return None
-    return db.get(User, user_id)
+    return (
+        db.query(User)
+        .options(joinedload(User.teams))
+        .filter(User.id == user_id)
+        .first()
+    )
 
 
 def require_rd(
@@ -53,5 +58,15 @@ def require_rd(
     if not user:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="RD login required"
+        )
+    return user
+
+
+def require_admin(
+    user: User = Depends(require_rd),
+) -> User:
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Admin required"
         )
     return user

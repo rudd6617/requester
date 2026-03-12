@@ -144,6 +144,21 @@ export function useMoveKanbanCard() {
   });
 }
 
+// --- Users ---
+
+export function useUsers(enabled = true) {
+  return useQuery({ queryKey: ["users"], queryFn: api.fetchUsers, enabled });
+}
+
+export function useUpdateTeamMembers() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ teamId, userIds }: { teamId: number; userIds: number[] }) =>
+      api.updateTeamMembers(teamId, userIds),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
 // --- Comments ---
 
 export function useComments(requestId: number | null) {

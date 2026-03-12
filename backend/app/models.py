@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
     Column,
     Date,
     DateTime,
@@ -9,12 +10,20 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    Table,
     Text,
     func,
 )
 from sqlalchemy.orm import relationship
 
 from .database import Base
+
+user_teams = Table(
+    "user_teams",
+    Base.metadata,
+    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
+    Column("team_id", Integer, ForeignKey("teams.id"), primary_key=True),
+)
 
 
 class Team(Base):
@@ -26,6 +35,7 @@ class Team(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     kanban_cards = relationship("KanbanCard", back_populates="team")
+    members = relationship("User", secondary=user_teams, back_populates="teams")
 
 
 class Request(Base):
@@ -73,9 +83,15 @@ class User(Base):
     username = Column(String(50), unique=True, nullable=False)
     display_name = Column(String(100), nullable=False)
     password_hash = Column(String(255), nullable=False)
+    is_admin = Column(Boolean, nullable=False, server_default="0")
     created_at = Column(DateTime, server_default=func.now())
 
     comments = relationship("Comment", back_populates="user")
+    teams = relationship("Team", secondary=user_teams, back_populates="members")
+
+    @property
+    def team_ids(self) -> list[int]:
+        return [t.id for t in self.teams]
 
 
 class Comment(Base):
