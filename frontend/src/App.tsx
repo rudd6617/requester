@@ -8,8 +8,7 @@ import TeamManage from "./pages/TeamManage";
 import UserManage from "./pages/UserManage";
 
 function RequireAuth() {
-  const { isRD, loading } = useAuth();
-  if (loading) return null;
+  const { isRD } = useAuth();
   return isRD ? <Outlet /> : <Navigate to="/request-pool" replace />;
 }
 

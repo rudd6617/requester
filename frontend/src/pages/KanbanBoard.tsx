@@ -10,13 +10,22 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { BarChartOutlined, ProjectOutlined } from "@ant-design/icons";
-import { Button, Card, DatePicker, Divider, Drawer, Form, Input, message, Segmented, Select, Spin, Typography } from "antd";
+import { BarChart3, Columns3 } from "lucide-react";
 import dayjs from "dayjs";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
 import GanttView from "../components/GanttView";
 import KanbanColumn from "../components/KanbanColumn";
 import PriorityBadge from "../components/PriorityBadge";
+import SegmentedControl from "../components/SegmentedControl";
 import {
   useKanbanCards,
   useMoveKanbanCard,
@@ -26,10 +35,7 @@ import {
 } from "../hooks/useRequests";
 import { useAuth } from "../contexts/AuthContext";
 import { priorityOptions, riskOptions } from "../constants";
-import type { ColumnStage, KanbanCard } from "../types";
-
-const { Title, Text } = Typography;
-const { TextArea } = Input;
+import type { ColumnStage, KanbanCard, Priority, Risk } from "../types";
 
 const COLUMN_STAGES: ColumnStage[] = ["todo", "in_progress", "done", "release"];
 
@@ -53,8 +59,21 @@ export default function KanbanBoard() {
   const updateRequest = useUpdateRequest();
   const [activeCard, setActiveCard] = useState<KanbanCard | null>(null);
   const [editingCard, setEditingCard] = useState<KanbanCard | null>(null);
-  const [cardForm] = Form.useForm();
-  const [requestForm] = Form.useForm();
+
+  // Card form state
+  const [cardAssignee, setCardAssignee] = useState("");
+  const [cardTicketUrl, setCardTicketUrl] = useState("");
+
+  // Request form state
+  const [reqTitle, setReqTitle] = useState("");
+  const [reqDescription, setReqDescription] = useState("");
+  const [reqBusinessImpact, setReqBusinessImpact] = useState("");
+  const [reqRequester, setReqRequester] = useState("");
+  const [reqPriority, setReqPriority] = useState<Priority>("medium");
+  const [reqRisk, setReqRisk] = useState<Risk | "">("");
+  const [reqStartDate, setReqStartDate] = useState("");
+  const [reqDueDate, setReqDueDate] = useState("");
+  const [reqReleaseDate, setReqReleaseDate] = useState("");
 
   const allCards = useMemo(() => {
     if (!board) return [];
@@ -70,21 +89,33 @@ export default function KanbanBoard() {
 
   const handleOpenCard = (card: KanbanCard) => {
     setEditingCard(card);
-    cardForm.setFieldsValue({
-      assignee: card.assignee,
-      ticket_url: card.ticket_url,
-    });
-    requestForm.setFieldsValue({
-      title: card.request.title,
-      description: card.request.description,
-      business_impact: card.request.business_impact,
-      requester: card.request.requester,
-      priority: card.request.priority,
-      risk: card.request.risk,
-      start_date: card.request.start_date ? dayjs(card.request.start_date) : null,
-      due_date: card.request.due_date ? dayjs(card.request.due_date) : null,
-      release_date: card.request.release_date ? dayjs(card.request.release_date) : null,
-    });
+    setCardAssignee(card.assignee || "");
+    setCardTicketUrl(card.ticket_url || "");
+    setReqTitle(card.request.title);
+    setReqDescription(card.request.description || "");
+    setReqBusinessImpact(card.request.business_impact || "");
+    setReqRequester(card.request.requester);
+    setReqPriority(card.request.priority);
+    setReqRisk(card.request.risk || "");
+    setReqStartDate(card.request.start_date ? dayjs(card.request.start_date).format("YYYY-MM-DD") : "");
+    setReqDueDate(card.request.due_date ? dayjs(card.request.due_date).format("YYYY-MM-DD") : "");
+    setReqReleaseDate(card.request.release_date ? dayjs(card.request.release_date).format("YYYY-MM-DD") : "");
+  };
+
+  const getFormPayloads = () => {
+    const cardValues = { assignee: cardAssignee, ticket_url: cardTicketUrl };
+    const requestPayload = {
+      title: reqTitle,
+      description: reqDescription,
+      business_impact: reqBusinessImpact,
+      requester: reqRequester,
+      priority: reqPriority,
+      risk: reqRisk || null,
+      start_date: reqStartDate || null,
+      due_date: reqDueDate || null,
+      release_date: reqReleaseDate || null,
+    };
+    return { cardValues, requestPayload };
   };
 
   const sensors = useSensors(
@@ -158,24 +189,17 @@ export default function KanbanBoard() {
 
   const handleEditSubmit = async () => {
     if (!editingCard) return;
-    const cardValues = await cardForm.validateFields();
-    const requestValues = await requestForm.validateFields();
-    const requestPayload = {
-      ...requestValues,
-      start_date: requestValues.start_date?.format("YYYY-MM-DD") || null,
-      due_date: requestValues.due_date?.format("YYYY-MM-DD") || null,
-      release_date: requestValues.release_date?.format("YYYY-MM-DD") || null,
-    };
+    const { cardValues, requestPayload } = getFormPayloads();
     setSaving(true);
     try {
       await Promise.all([
         updateCard.mutateAsync({ id: editingCard.id, ...cardValues }),
         updateRequest.mutateAsync({ id: editingCard.request.id, ...requestPayload }),
       ]);
-      message.success("已更新");
+      toast.success("已更新");
       setEditingCard(null);
     } catch {
-      message.error("更新失敗");
+      toast.error("更新失敗");
     } finally {
       setSaving(false);
     }
@@ -186,18 +210,14 @@ export default function KanbanBoard() {
     moveCard.mutate(
       { id: editingCard.id, stage: "archived", position: 0 },
       {
-        onSuccess: () => {
-          message.success("需求已結案");
-          setEditingCard(null);
-        },
-        onError: () => message.error("結案失敗"),
+        onSuccess: () => { toast.success("需求已結案"); setEditingCard(null); },
+        onError: () => toast.error("結案失敗"),
       }
     );
   };
 
-  const handleTeamChange = (val: string | number) => {
-    const v = String(val);
-    setTeamId(v === "all" ? null : Number(v));
+  const handleTeamChange = (val: string) => {
+    setTeamId(val === "all" ? null : Number(val));
   };
 
   useEffect(() => {
@@ -216,30 +236,26 @@ export default function KanbanBoard() {
 
   return (
     <>
-      <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 8 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          開發看板
-        </Title>
-        <Segmented
-          className="seg-white"
+      <div className="mb-2 flex items-center gap-4">
+        <h2 className="text-xl font-semibold">開發看板</h2>
+        <SegmentedControl
           value={viewMode}
-          onChange={(val) => setViewMode(val as ViewMode)}
+          onChange={setViewMode}
           options={[
-            { value: "kanban", icon: <ProjectOutlined />, label: "看板" },
-            { value: "gantt", icon: <BarChartOutlined />, label: "甘特圖" },
+            { value: "kanban" as ViewMode, label: <span className="flex items-center gap-1"><Columns3 className="size-4" />看板</span> },
+            { value: "gantt" as ViewMode, label: <span className="flex items-center gap-1"><BarChart3 className="size-4" />甘特圖</span> },
           ]}
         />
       </div>
-      <div style={{ marginBottom: 16 }}>
-        <Segmented
-          className="seg-white"
+      <div className="mb-4">
+        <SegmentedControl
           value={teamId ? String(teamId) : "all"}
           onChange={handleTeamChange}
           options={teamOptions}
         />
       </div>
 
-      {isLoading && <Spin />}
+      {isLoading && <p className="text-sm text-muted-foreground">載入中...</p>}
 
       {board && viewMode === "kanban" && (
         <DndContext
@@ -248,7 +264,7 @@ export default function KanbanBoard() {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div style={{ display: "flex", gap: 16, overflowX: "auto", height: "calc(100vh - 160px)" }}>
+          <div className="flex gap-4 overflow-x-auto" style={{ height: "calc(100vh - 160px)" }}>
             {COLUMN_STAGES.map((stage) => (
               <KanbanColumn
                 key={stage}
@@ -260,13 +276,15 @@ export default function KanbanBoard() {
           </div>
           <DragOverlay dropAnimation={dropAnimation}>
             {activeCard && (
-              <Card size="small" style={{ width: 260, opacity: 0.9, boxShadow: "0 4px 12px rgba(0,0,0,0.15)" }}>
-                <Text strong>
-                  #{activeCard.request.id} {activeCard.request.title}
-                </Text>
-                <div style={{ marginTop: 4 }}>
-                  <PriorityBadge priority={activeCard.request.priority} />
-                </div>
+              <Card className="w-[260px] opacity-90 shadow-lg">
+                <CardContent className="p-3">
+                  <span className="font-semibold">
+                    #{activeCard.request.id} {activeCard.request.title}
+                  </span>
+                  <div className="mt-1">
+                    <PriorityBadge priority={activeCard.request.priority} />
+                  </div>
+                </CardContent>
               </Card>
             )}
           </DragOverlay>
@@ -277,123 +295,139 @@ export default function KanbanBoard() {
         <GanttView requests={ganttRequests} onClickRequest={handleGanttClick} />
       )}
 
-      <Drawer
-        title={editingCard ? `#${editingCard.request.id} ${editingCard.request.title}` : ""}
-        open={!!editingCard}
-        onClose={() => setEditingCard(null)}
-        width={560}
-        extra={editingCard && (
-          <Button type="primary" onClick={handleEditSubmit} loading={saving}>
-            更新
-          </Button>
-        )}
-      >
-        {editingCard && (
-          <>
-            <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
-              {([
-                { stage: "todo" as ColumnStage, label: "待辦" },
-                { stage: "in_progress" as ColumnStage, label: "進行" },
-                { stage: "done" as ColumnStage, label: "完成" },
-                { stage: "release" as ColumnStage, label: "上線" },
-              ]).map(({ stage, label }) => (
-                <Button
-                  key={stage}
-                  type={editingCard.stage === stage ? "primary" : "default"}
-                  disabled={editingCard.stage === stage}
-                  onClick={async () => {
-                    if (stage === "release") {
-                      const releaseDate = requestForm.getFieldValue("release_date");
-                      if (!releaseDate) {
-                        message.warning("請先填寫上線日期");
-                        requestForm.scrollToField("release_date");
-                        return;
-                      }
-                    }
-                    const cardValues = await cardForm.validateFields();
-                    const requestValues = await requestForm.validateFields();
-                    const requestPayload = {
-                      ...requestValues,
-                      start_date: requestValues.start_date?.format("YYYY-MM-DD") || null,
-                      due_date: requestValues.due_date?.format("YYYY-MM-DD") || null,
-                      release_date: requestValues.release_date?.format("YYYY-MM-DD") || null,
-                    };
-                    await Promise.all([
-                      updateCard.mutateAsync({ id: editingCard.id, assignee: cardValues.assignee }),
-                      updateRequest.mutateAsync({ id: editingCard.request.id, ...requestPayload }),
-                    ]);
-                    moveCard.mutate(
-                      { id: editingCard.id, stage, position: getAppendPosition(stage) },
-                      {
-                        onSuccess: () => {
-                          message.success(`已移至${label}`);
-                          setEditingCard(null);
-                        },
-                      }
-                    );
-                  }}
-                >
-                  {label}
-                </Button>
-              ))}
-              <Button
-                danger
-                disabled={editingCard.stage !== "release"}
-                onClick={handleArchive}
-              >
-                結案
-              </Button>
-            </div>
-            <Form form={cardForm} layout="vertical">
-              <div style={{ display: "flex", gap: 16 }}>
-                <Form.Item name="assignee" label="負責人" style={{ flex: 1 }}>
-                  <Input />
-                </Form.Item>
-                <Form.Item name="ticket_url" label="關聯工單" style={{ flex: 1 }}>
-                  <Input placeholder="輸入工單網址" />
-                </Form.Item>
-              </div>
-            </Form>
-            <Divider style={{ margin: "8px 0" }} />
-            <Form form={requestForm} layout="vertical">
-              <div style={{ display: "flex", gap: 16 }}>
-                <Form.Item name="title" label="標題" rules={[{ required: true, message: "請輸入標題" }]} style={{ flex: 1 }}>
-                  <Input />
-                </Form.Item>
-                <Form.Item name="requester" label="提出人" rules={[{ required: true, message: "請輸入提出人" }]} style={{ flex: 1 }}>
-                  <Input />
-                </Form.Item>
-              </div>
-              <div style={{ display: "flex", gap: 16 }}>
-                <Form.Item name="priority" label="優先級" style={{ flex: 1 }}>
-                  <Select options={priorityOptions} />
-                </Form.Item>
-                <Form.Item name="risk" label="風險" style={{ flex: 1 }}>
-                  <Select options={riskOptions} allowClear placeholder="選擇風險等級" />
-                </Form.Item>
-              </div>
-              <div style={{ display: "flex", gap: 16 }}>
-                <Form.Item name="start_date" label="開始日" style={{ flex: 1 }}>
-                  <DatePicker style={{ width: "100%" }} />
-                </Form.Item>
-                <Form.Item name="due_date" label="截止日" style={{ flex: 1 }}>
-                  <DatePicker style={{ width: "100%" }} />
-                </Form.Item>
-                <Form.Item name="release_date" label="上線日" style={{ flex: 1 }}>
-                  <DatePicker style={{ width: "100%" }} />
-                </Form.Item>
-              </div>
-              <Form.Item name="description" label="描述">
-                <TextArea rows={2} />
-              </Form.Item>
-              <Form.Item name="business_impact" label="業務影響">
-                <TextArea rows={2} />
-              </Form.Item>
-            </Form>
+      <Sheet open={!!editingCard} onOpenChange={(open) => !open && setEditingCard(null)}>
+        <SheetContent className="w-[560px] overflow-y-auto sm:max-w-[560px]">
+          <SheetHeader>
+            <SheetTitle>
+              {editingCard ? `#${editingCard.request.id} ${editingCard.request.title}` : ""}
+            </SheetTitle>
+          </SheetHeader>
 
-          </>
-        )}
-      </Drawer>
+          {editingCard && (
+            <div className="mt-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { stage: "todo" as ColumnStage, label: "待辦" },
+                    { stage: "in_progress" as ColumnStage, label: "進行" },
+                    { stage: "done" as ColumnStage, label: "完成" },
+                    { stage: "release" as ColumnStage, label: "上線" },
+                  ]).map(({ stage, label }) => (
+                    <Button
+                      key={stage}
+                      variant={editingCard.stage === stage ? "default" : "outline"}
+                      size="sm"
+                      disabled={editingCard.stage === stage}
+                      onClick={async () => {
+                        if (stage === "release" && !reqReleaseDate) {
+                          toast.warning("請先填寫上線日期");
+                          return;
+                        }
+                        const { cardValues, requestPayload } = getFormPayloads();
+                        await Promise.all([
+                          updateCard.mutateAsync({ id: editingCard.id, assignee: cardValues.assignee }),
+                          updateRequest.mutateAsync({ id: editingCard.request.id, ...requestPayload }),
+                        ]);
+                        moveCard.mutate(
+                          { id: editingCard.id, stage, position: getAppendPosition(stage) },
+                          { onSuccess: () => { toast.success(`已移至${label}`); setEditingCard(null); } }
+                        );
+                      }}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={editingCard.stage !== "release"}
+                    onClick={handleArchive}
+                  >
+                    結案
+                  </Button>
+                </div>
+                <Button onClick={handleEditSubmit} disabled={saving}>
+                  {saving ? "更新中..." : "更新"}
+                </Button>
+              </div>
+
+              <div className="flex gap-4">
+                <div className="flex-1 space-y-2">
+                  <Label>負責人</Label>
+                  <Input value={cardAssignee} onChange={(e) => setCardAssignee(e.target.value)} />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Label>關聯工單</Label>
+                  <Input value={cardTicketUrl} onChange={(e) => setCardTicketUrl(e.target.value)} placeholder="輸入工單網址" />
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="flex gap-4">
+                <div className="flex-1 space-y-2">
+                  <Label>標題</Label>
+                  <Input value={reqTitle} onChange={(e) => setReqTitle(e.target.value)} required />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Label>提出人</Label>
+                  <Input value={reqRequester} onChange={(e) => setReqRequester(e.target.value)} required />
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-1 space-y-2">
+                  <Label>優先級</Label>
+                  <Select value={reqPriority} onValueChange={(v) => v && setReqPriority(v as Priority)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {priorityOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Label>風險</Label>
+                  <Select value={reqRisk} onValueChange={(v) => setReqRisk((v || "") as Risk | "")}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="選擇風險等級" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {riskOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="flex-1 space-y-2">
+                  <Label>開始日</Label>
+                  <Input type="date" value={reqStartDate} onChange={(e) => setReqStartDate(e.target.value)} />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Label>截止日</Label>
+                  <Input type="date" value={reqDueDate} onChange={(e) => setReqDueDate(e.target.value)} />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Label>上線日</Label>
+                  <Input type="date" value={reqReleaseDate} onChange={(e) => setReqReleaseDate(e.target.value)} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>描述</Label>
+                <Textarea rows={2} value={reqDescription} onChange={(e) => setReqDescription(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>業務影響</Label>
+                <Textarea rows={2} value={reqBusinessImpact} onChange={(e) => setReqBusinessImpact(e.target.value)} />
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </>
   );
 }

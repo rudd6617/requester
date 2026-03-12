@@ -1,26 +1,37 @@
-import { Tag } from "antd";
 import type { ReactNode } from "react";
-import type { Priority, Risk, Stage } from "./types";
+import PriorityBadge from "./components/PriorityBadge";
+import RiskBadge from "./components/RiskBadge";
+import StatusBadge from "./components/StatusBadge";
+import StageBadge from "./components/StageBadge";
+import type { Priority, Risk, Stage, Status } from "./types";
 
 type Option<T> = { value: T; label: ReactNode };
 
 export const priorityOptions: Option<Priority>[] = [
-  { value: "critical", label: <Tag color="red">緊急</Tag> },
-  { value: "high", label: <Tag color="volcano">高</Tag> },
-  { value: "medium", label: <Tag color="gold">中</Tag> },
-  { value: "low", label: <Tag>低</Tag> },
+  { value: "critical", label: <PriorityBadge priority="critical" /> },
+  { value: "high", label: <PriorityBadge priority="high" /> },
+  { value: "medium", label: <PriorityBadge priority="medium" /> },
+  { value: "low", label: <PriorityBadge priority="low" /> },
 ];
 
 export const riskOptions: Option<Risk>[] = [
-  { value: "high", label: <Tag color="red">高</Tag> },
-  { value: "medium", label: <Tag color="orange">中</Tag> },
-  { value: "low", label: <Tag color="green">低</Tag> },
+  { value: "high", label: <RiskBadge risk="high" /> },
+  { value: "medium", label: <RiskBadge risk="medium" /> },
+  { value: "low", label: <RiskBadge risk="low" /> },
 ];
 
 export const stageOptions: Option<Stage>[] = [
-  { value: "todo", label: <Tag>待辦</Tag> },
-  { value: "in_progress", label: <Tag color="processing">進行中</Tag> },
-  { value: "done", label: <Tag color="green">已完成</Tag> },
-  { value: "release", label: <Tag color="warning">待上線</Tag> },
-  { value: "archived", label: <Tag color="default">結案</Tag> },
+  { value: "todo", label: <StageBadge stage="todo" /> },
+  { value: "in_progress", label: <StageBadge stage="in_progress" /> },
+  { value: "done", label: <StageBadge stage="done" /> },
+  { value: "release", label: <StageBadge stage="release" /> },
+  { value: "archived", label: <StageBadge stage="archived" /> },
+];
+
+export const statusOptions: Option<Status>[] = [
+  { value: "new", label: <StatusBadge status="new" /> },
+  { value: "assigned", label: <StatusBadge status="assigned" /> },
+  { value: "done", label: <StatusBadge status="done" /> },
+  { value: "cancelled", label: <StatusBadge status="cancelled" /> },
+  { value: "archived", label: <StatusBadge status="archived" /> },
 ];

@@ -1,19 +1,15 @@
-import {
-  Button,
-  DatePicker,
-  Drawer,
-  Form,
-  Input,
-  message,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Typography,
-} from "antd";
-import type { TablePaginationConfig, SorterResult } from "antd/es/table/interface";
+import axios from "axios";
+import { ArrowDown, ArrowUp, ArrowUpDown, Search } from "lucide-react";
 import dayjs from "dayjs";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import StageBadge from "../components/StageBadge";
 import PriorityBadge from "../components/PriorityBadge";
 import RiskBadge from "../components/RiskBadge";
@@ -25,20 +21,39 @@ import {
   useTeams,
   useUpdateRequest,
 } from "../hooks/useRequests";
-import { priorityOptions, riskOptions } from "../constants";
-import type { Priority, Request, Risk, Stage, Status } from "../types";
+import { priorityOptions, riskOptions, statusOptions } from "../constants";
+import type { Priority, Request, Risk, Status } from "../types";
 
-const { TextArea } = Input;
+type SortField = "id" | "title" | "requester" | "created_at" | "priority" | "status" | "risk" | "release_date";
 
-const { Title } = Typography;
-
-const statusOptions = [
-  { value: "new", label: <Tag color="blue">新需求</Tag> },
-  { value: "assigned", label: <Tag color="cyan">已指派</Tag> },
-  { value: "done", label: <Tag color="green">已完成</Tag> },
-  { value: "cancelled", label: <Tag color="red">已取消</Tag> },
-  { value: "archived", label: <Tag>已結案</Tag> },
-];
+function SortableHeader({
+  field,
+  label,
+  currentSort,
+  currentOrder,
+  onSort,
+}: {
+  field: SortField;
+  label: string;
+  currentSort: string;
+  currentOrder: string;
+  onSort: (field: SortField) => void;
+}) {
+  const isActive = currentSort === field;
+  return (
+    <button
+      className="flex items-center gap-1 text-left font-medium"
+      onClick={() => onSort(field)}
+    >
+      {label}
+      {isActive ? (
+        currentOrder === "asc" ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />
+      ) : (
+        <ArrowUpDown className="size-3 opacity-30" />
+      )}
+    </button>
+  );
+}
 
 export default function Backlog() {
   const { isRD } = useAuth();
@@ -55,51 +70,63 @@ export default function Backlog() {
   const { data: teams } = useTeams();
   const createCard = useCreateKanbanCard();
 
-  // Detail drawer
+  // Detail drawer state
   const [detailRequest, setDetailRequest] = useState<Request | null>(null);
-  const [drawerForm] = Form.useForm();
-
   const [selectedTeam, setSelectedTeam] = useState<number | null>(null);
+  const [searchInput, setSearchInput] = useState("");
 
-  useEffect(() => {
-    if (detailRequest) {
-      drawerForm.setFieldsValue({
-        title: detailRequest.title,
-        description: detailRequest.description,
-        business_impact: detailRequest.business_impact,
-        requester: detailRequest.requester,
-        priority: detailRequest.priority,
-        status: detailRequest.status,
-        risk: detailRequest.risk,
-        start_date: detailRequest.start_date ? dayjs(detailRequest.start_date) : null,
-        due_date: detailRequest.due_date ? dayjs(detailRequest.due_date) : null,
-        release_date: detailRequest.release_date ? dayjs(detailRequest.release_date) : null,
-      });
-      const matchedTeam = teams?.find((t) => t.name === detailRequest.assigned_team);
-      setSelectedTeam(matchedTeam?.id ?? null);
-    }
-  }, [detailRequest, drawerForm, teams]);
+  // Drawer form state
+  const [fTitle, setFTitle] = useState("");
+  const [fDescription, setFDescription] = useState("");
+  const [fBusinessImpact, setFBusinessImpact] = useState("");
+  const [fRequester, setFRequester] = useState("");
+  const [fPriority, setFPriority] = useState<Priority>("medium");
+  const [fStatus, setFStatus] = useState<Status>("new");
+  const [fRisk, setFRisk] = useState<Risk | "">("");
+  const [fStartDate, setFStartDate] = useState("");
+  const [fDueDate, setFDueDate] = useState("");
+  const [fReleaseDate, setFReleaseDate] = useState("");
+
+  const openDetail = (req: Request) => {
+    setDetailRequest(req);
+    setFTitle(req.title);
+    setFDescription(req.description || "");
+    setFBusinessImpact(req.business_impact || "");
+    setFRequester(req.requester);
+    setFPriority(req.priority);
+    setFStatus(req.status);
+    setFRisk(req.risk || "");
+    setFStartDate(req.start_date ? dayjs(req.start_date).format("YYYY-MM-DD") : "");
+    setFDueDate(req.due_date ? dayjs(req.due_date).format("YYYY-MM-DD") : "");
+    setFReleaseDate(req.release_date ? dayjs(req.release_date).format("YYYY-MM-DD") : "");
+    const matchedTeam = teams?.find((t) => t.name === req.assigned_team);
+    setSelectedTeam(matchedTeam?.id ?? null);
+  };
 
   const handleUpdate = () => {
     if (!detailRequest) return;
-    drawerForm.validateFields().then((values) => {
-      const payload = {
-        ...values,
-        start_date: values.start_date?.format("YYYY-MM-DD") || null,
-        due_date: values.due_date?.format("YYYY-MM-DD") || null,
-        release_date: values.release_date?.format("YYYY-MM-DD") || null,
-      };
-      updateRequest.mutate(
-        { id: detailRequest.id, ...payload },
-        {
-          onSuccess: () => {
-            message.success("需求已更新");
-            setDetailRequest((prev) => (prev ? { ...prev, ...payload } : null));
-          },
-          onError: () => message.error("更新失敗"),
-        }
-      );
-    });
+    const payload = {
+      title: fTitle,
+      description: fDescription,
+      business_impact: fBusinessImpact,
+      requester: fRequester,
+      priority: fPriority,
+      status: fStatus,
+      risk: fRisk || null,
+      start_date: fStartDate || null,
+      due_date: fDueDate || null,
+      release_date: fReleaseDate || null,
+    };
+    updateRequest.mutate(
+      { id: detailRequest.id, ...payload },
+      {
+        onSuccess: () => {
+          toast.success("需求已更新");
+          setDetailRequest((prev) => (prev ? { ...prev, ...payload } : null));
+        },
+        onError: () => toast.error("更新失敗"),
+      }
+    );
   };
 
   const handleAssign = () => {
@@ -108,35 +135,22 @@ export default function Backlog() {
       { request_id: detailRequest.id, team_id: selectedTeam },
       {
         onSuccess: () => {
-          message.success("已建立看板卡片");
+          toast.success("已建立看板卡片");
           setSelectedTeam(null);
         },
-        onError: (err: any) =>
-          message.error(err?.response?.data?.detail || "建立卡片失敗"),
+        onError: (err) =>
+          toast.error(axios.isAxiosError(err) ? err.response?.data?.detail : "建立卡片失敗"),
       }
     );
   };
 
-  const handleTableChange = (
-    pagination: TablePaginationConfig,
-    _filters: Record<string, unknown>,
-    sorter: SorterResult<Request> | SorterResult<Request>[],
-  ) => {
-    const s = Array.isArray(sorter) ? sorter[0] : sorter;
+  const handleSort = (field: SortField) => {
     setFilters((prev) => {
-      const next: Record<string, string | number> = {
-        ...prev,
-        page: pagination.current || 1,
-        page_size: pagination.pageSize || 20,
-      };
-      if (s?.field && s.order) {
-        next.sort = String(s.field);
-        next.order = s.order === "ascend" ? "asc" : "desc";
-      } else {
-        next.sort = "created_at";
-        next.order = "desc";
+      const isSame = prev.sort === field;
+      if (isSame && prev.order === "desc") {
+        return { ...prev, page: 1, sort: "created_at", order: "desc" };
       }
-      return next;
+      return { ...prev, page: 1, sort: field, order: isSame ? "desc" : "asc" };
     });
   };
 
@@ -148,7 +162,6 @@ export default function Backlog() {
       } else {
         delete next[key];
       }
-      // 手動選 status 時移除 exclude_status，清除時恢復預設排除
       if (key === "status") {
         if (value) {
           delete next.exclude_status;
@@ -160,187 +173,248 @@ export default function Backlog() {
     });
   };
 
-  const columns = [
-    { title: "ID", dataIndex: "id", width: 80, sorter: true },
-    { title: "標題", dataIndex: "title", ellipsis: true, sorter: true },
-    { title: "提出人", dataIndex: "requester", width: 100, sorter: true },
-    {
-      title: "建立日期",
-      dataIndex: "created_at",
-      width: 120,
-      sorter: true,
-      render: (d: string) => dayjs(d).format("YYYY-MM-DD"),
-    },
-    {
-      title: "優先級",
-      dataIndex: "priority",
-      width: 90,
-      sorter: true,
-      render: (p: Priority) => <PriorityBadge priority={p} />,
-    },
-    {
-      title: "狀態",
-      dataIndex: "status",
-      width: 100,
-      sorter: true,
-      render: (s: Status) => <StatusBadge status={s} />,
-    },
-    {
-      title: "風險",
-      dataIndex: "risk",
-      width: 80,
-      sorter: true,
-      render: (r: Risk | null) => r ? <RiskBadge risk={r} /> : "-",
-    },
-    {
-      title: "指派團隊",
-      dataIndex: "assigned_team",
-      width: 120,
-      render: (team: string | null) => team || "-",
-    },
-    {
-      title: "開發狀態",
-      dataIndex: "stage",
-      width: 100,
-      render: (s: Stage | null) => s ? <StageBadge stage={s} /> : "-",
-    },
-    {
-      title: "上線日期",
-      dataIndex: "release_date",
-      width: 120,
-      sorter: true,
-      render: (d: string | null) => d ? dayjs(d).format("YYYY-MM-DD") : "-",
-    },
-  ];
+  const handleSearch = () => {
+    updateFilter("search", searchInput || undefined);
+  };
+
+  const sort = String(filters.sort || "created_at");
+  const order = String(filters.order || "desc");
+  const page = Number(filters.page || 1);
+  const pageSize = Number(filters.page_size || 20);
+  const totalPages = data ? Math.ceil(data.total / pageSize) : 1;
 
   return (
     <>
-      <div style={{ display: "flex", gap: 16, alignItems: "center", marginBottom: 8 }}>
-        <Title level={3} style={{ margin: 0 }}>需求池</Title>
+      <h2 className="mb-2 text-xl font-semibold">需求池</h2>
+
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="relative w-[240px]">
+          <Search className="absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-8"
+            placeholder="搜尋標題..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+          />
+        </div>
+        <Select
+          value={filters.status ? String(filters.status) : undefined}
+          onValueChange={(v) => updateFilter("status", v || undefined)}
+        >
+          <SelectTrigger className="w-[120px]">
+            <SelectValue placeholder="狀態" />
+          </SelectTrigger>
+          <SelectContent>
+            {statusOptions.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={filters.priority ? String(filters.priority) : undefined}
+          onValueChange={(v) => updateFilter("priority", v || undefined)}
+        >
+          <SelectTrigger className="w-[120px]">
+            <SelectValue placeholder="優先級" />
+          </SelectTrigger>
+          <SelectContent>
+            {priorityOptions.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      <Space style={{ marginBottom: 16 }} wrap>
-        <Input.Search
-          placeholder="搜尋標題..."
-          allowClear
-          onSearch={(val) => updateFilter("search", val || undefined)}
-          style={{ width: 240 }}
-        />
-        <Select
-          placeholder="狀態"
-          allowClear
-          style={{ width: 120 }}
-          options={statusOptions}
-          onChange={(val) => updateFilter("status", val)}
-        />
-        <Select
-          placeholder="優先級"
-          allowClear
-          style={{ width: 120 }}
-          options={priorityOptions}
-          onChange={(val) => updateFilter("priority", val)}
-        />
-      </Space>
+      <div className="rounded-lg border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[80px]"><SortableHeader field="id" label="ID" currentSort={sort} currentOrder={order} onSort={handleSort} /></TableHead>
+              <TableHead><SortableHeader field="title" label="標題" currentSort={sort} currentOrder={order} onSort={handleSort} /></TableHead>
+              <TableHead className="w-[100px]"><SortableHeader field="requester" label="提出人" currentSort={sort} currentOrder={order} onSort={handleSort} /></TableHead>
+              <TableHead className="w-[120px]"><SortableHeader field="created_at" label="建立日期" currentSort={sort} currentOrder={order} onSort={handleSort} /></TableHead>
+              <TableHead className="w-[90px]"><SortableHeader field="priority" label="優先級" currentSort={sort} currentOrder={order} onSort={handleSort} /></TableHead>
+              <TableHead className="w-[100px]"><SortableHeader field="status" label="狀態" currentSort={sort} currentOrder={order} onSort={handleSort} /></TableHead>
+              <TableHead className="w-[80px]"><SortableHeader field="risk" label="風險" currentSort={sort} currentOrder={order} onSort={handleSort} /></TableHead>
+              <TableHead className="w-[120px]">指派團隊</TableHead>
+              <TableHead className="w-[100px]">開發狀態</TableHead>
+              <TableHead className="w-[120px]"><SortableHeader field="release_date" label="上線日期" currentSort={sort} currentOrder={order} onSort={handleSort} /></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground">載入中...</TableCell></TableRow>
+            ) : !data?.items.length ? (
+              <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground">無資料</TableCell></TableRow>
+            ) : data.items.map((r) => (
+              <TableRow key={r.id} className="cursor-pointer" onClick={() => openDetail(r)}>
+                <TableCell>{r.id}</TableCell>
+                <TableCell className="max-w-[200px] truncate">{r.title}</TableCell>
+                <TableCell>{r.requester}</TableCell>
+                <TableCell>{dayjs(r.created_at).format("YYYY-MM-DD")}</TableCell>
+                <TableCell><PriorityBadge priority={r.priority} /></TableCell>
+                <TableCell><StatusBadge status={r.status} /></TableCell>
+                <TableCell>{r.risk ? <RiskBadge risk={r.risk} /> : "-"}</TableCell>
+                <TableCell>{r.assigned_team || "-"}</TableCell>
+                <TableCell>{r.stage ? <StageBadge stage={r.stage} /> : "-"}</TableCell>
+                <TableCell>{r.release_date ? dayjs(r.release_date).format("YYYY-MM-DD") : "-"}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
 
-      <Table
-        dataSource={data?.items}
-        columns={columns}
-        rowKey="id"
-        loading={isLoading}
-        onChange={handleTableChange}
-        onRow={(record) => ({
-          onClick: () => setDetailRequest(record),
-          style: { cursor: "pointer" },
-        })}
-        pagination={{
-          current: data?.page,
-          pageSize: data?.page_size,
-          total: data?.total,
-          showSizeChanger: true,
-        }}
-      />
+      {/* Pagination */}
+      {data && data.total > 0 && (
+        <div className="mt-3 flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">
+            共 {data.total} 筆
+          </span>
+          <div className="flex items-center gap-2">
+            <Select
+              value={String(pageSize)}
+              onValueChange={(v) => setFilters((prev) => ({ ...prev, page: 1, page_size: Number(v) }))}
+            >
+              <SelectTrigger className="w-[80px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[10, 20, 50].map((n) => (
+                  <SelectItem key={n} value={String(n)}>{n} 筆</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setFilters((prev) => ({ ...prev, page: page - 1 }))}>
+              上一頁
+            </Button>
+            <span className="text-sm">{page} / {totalPages}</span>
+            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setFilters((prev) => ({ ...prev, page: page + 1 }))}>
+              下一頁
+            </Button>
+          </div>
+        </div>
+      )}
 
-      <Drawer
-        title={detailRequest ? `#${detailRequest.id} ${detailRequest.title}` : ""}
-        open={!!detailRequest}
-        onClose={() => { setDetailRequest(null); setSelectedTeam(null); }}
-        width={560}
-        extra={detailRequest && isRD && (
-          <Button type="primary" onClick={handleUpdate} loading={updateRequest.isPending}>
-            更新
-          </Button>
-        )}
-      >
-        {detailRequest && (
-          <>
-            <Form form={drawerForm} layout="vertical">
-              <div style={{ display: "flex", gap: 16 }}>
-                <Form.Item name="title" label="標題" rules={[{ required: true, message: "請輸入標題" }]} style={{ flex: 1 }}>
-                  <Input />
-                </Form.Item>
-                <Form.Item name="requester" label="提出人" rules={[{ required: true, message: "請輸入提出人" }]} style={{ flex: 1 }}>
-                  <Input />
-                </Form.Item>
+      {/* Detail Sheet */}
+      <Sheet open={!!detailRequest} onOpenChange={(open) => { if (!open) { setDetailRequest(null); setSelectedTeam(null); } }}>
+        <SheetContent className="w-[560px] overflow-y-auto sm:max-w-[560px]">
+          <SheetHeader>
+            <SheetTitle>
+              {detailRequest ? `#${detailRequest.id} ${detailRequest.title}` : ""}
+            </SheetTitle>
+          </SheetHeader>
+
+          {detailRequest && (
+            <div className="mt-4 space-y-4">
+              {isRD && (
+                <div className="flex justify-end">
+                  <Button onClick={handleUpdate} disabled={updateRequest.isPending}>
+                    {updateRequest.isPending ? "更新中..." : "更新"}
+                  </Button>
+                </div>
+              )}
+
+              <div className="flex gap-4">
+                <div className="flex-1 space-y-2">
+                  <Label>標題</Label>
+                  <Input value={fTitle} onChange={(e) => setFTitle(e.target.value)} required />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Label>提出人</Label>
+                  <Input value={fRequester} onChange={(e) => setFRequester(e.target.value)} required />
+                </div>
               </div>
-              <div style={{ display: "flex", gap: 16 }}>
-                <Form.Item name="priority" label="優先級" style={{ flex: 1 }}>
-                  <Select options={priorityOptions} />
-                </Form.Item>
-                <Form.Item name="status" label="狀態" style={{ flex: 1 }}>
-                  <Select options={statusOptions} />
-                </Form.Item>
+              <div className="flex gap-4">
+                <div className="flex-1 space-y-2">
+                  <Label>優先級</Label>
+                  <Select value={fPriority} onValueChange={(v) => v && setFPriority(v as Priority)}>
+                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {priorityOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Label>狀態</Label>
+                  <Select value={fStatus} onValueChange={(v) => v && setFStatus(v as Status)}>
+                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {statusOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div style={{ display: "flex", gap: 16 }}>
-                <Form.Item name="risk" label="風險" style={{ flex: 1 }}>
-                  <Select options={riskOptions} allowClear placeholder="選擇風險等級" />
-                </Form.Item>
-                <Form.Item label="指派團隊" style={{ flex: 1 }}>
+              <div className="flex gap-4">
+                <div className="flex-1 space-y-2">
+                  <Label>風險</Label>
+                  <Select value={fRisk} onValueChange={(v) => setFRisk((v || "") as Risk | "")}>
+                    <SelectTrigger className="w-full"><SelectValue placeholder="選擇風險等級" /></SelectTrigger>
+                    <SelectContent>
+                      {riskOptions.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Label>指派團隊</Label>
                   {isRD && (detailRequest.status === "new" || detailRequest.status === "assigned") ? (
-                    <Space.Compact style={{ width: "100%" }}>
+                    <div className="flex gap-2">
                       <Select
-                        placeholder="選擇團隊"
-                        style={{ flex: 1 }}
-                        value={selectedTeam}
-                        onChange={setSelectedTeam}
-                        options={teams?.map((t) => ({ value: t.id, label: t.name }))}
-                      />
-                      <Button type="primary" onClick={handleAssign} loading={createCard.isPending} disabled={!selectedTeam}>
+                        value={selectedTeam ? String(selectedTeam) : undefined}
+                        onValueChange={(v) => v && setSelectedTeam(Number(v))}
+                      >
+                        <SelectTrigger className="flex-1"><SelectValue placeholder="選擇團隊" /></SelectTrigger>
+                        <SelectContent>
+                          {teams?.map((t) => (
+                            <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button onClick={handleAssign} disabled={!selectedTeam || createCard.isPending}>
                         指派
                       </Button>
-                    </Space.Compact>
+                    </div>
                   ) : (
-                    <span>{detailRequest.assigned_team || "-"}</span>
+                    <p className="py-2 text-sm">{detailRequest.assigned_team || "-"}</p>
                   )}
-                </Form.Item>
-                <Form.Item label="開發狀態" style={{ flex: 1 }}>
-                  {detailRequest.stage ? <StageBadge stage={detailRequest.stage} /> : "-"}
-                </Form.Item>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Label>開發狀態</Label>
+                  <p className="py-2">{detailRequest.stage ? <StageBadge stage={detailRequest.stage} /> : "-"}</p>
+                </div>
               </div>
-              <div style={{ display: "flex", gap: 16 }}>
-                <Form.Item name="start_date" label="開始日" style={{ flex: 1 }}>
-                  <DatePicker style={{ width: "100%" }} />
-                </Form.Item>
-                <Form.Item name="due_date" label="截止日" style={{ flex: 1 }}>
-                  <DatePicker style={{ width: "100%" }} />
-                </Form.Item>
-                <Form.Item name="release_date" label="上線日" style={{ flex: 1 }}>
-                  <DatePicker style={{ width: "100%" }} />
-                </Form.Item>
+              <div className="flex gap-4">
+                <div className="flex-1 space-y-2">
+                  <Label>開始日</Label>
+                  <Input type="date" value={fStartDate} onChange={(e) => setFStartDate(e.target.value)} />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Label>截止日</Label>
+                  <Input type="date" value={fDueDate} onChange={(e) => setFDueDate(e.target.value)} />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <Label>上線日</Label>
+                  <Input type="date" value={fReleaseDate} onChange={(e) => setFReleaseDate(e.target.value)} />
+                </div>
               </div>
-              <Form.Item name="description" label="描述">
-                <TextArea rows={2} />
-              </Form.Item>
-              <Form.Item name="business_impact" label="業務影響">
-                <TextArea rows={2} />
-              </Form.Item>
-            </Form>
-
-          </>
-        )}
-      </Drawer>
-
-
-
+              <div className="space-y-2">
+                <Label>描述</Label>
+                <Textarea rows={2} value={fDescription} onChange={(e) => setFDescription(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>業務影響</Label>
+                <Textarea rows={2} value={fBusinessImpact} onChange={(e) => setFBusinessImpact(e.target.value)} />
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </>
   );
 }

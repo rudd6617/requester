@@ -1,12 +1,12 @@
-import { Segmented, Switch, Tooltip, Typography } from "antd";
+import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import dayjs from "dayjs";
 import dayOfYear from "dayjs/plugin/dayOfYear";
 import { useMemo, useState } from "react";
+import SegmentedControl from "./SegmentedControl";
 
 dayjs.extend(dayOfYear);
 import type { Priority, Request } from "../types";
-
-const { Text } = Typography;
 
 const priorityColors: Record<Priority, string> = {
   critical: "#ff4d4f",
@@ -82,26 +82,25 @@ export default function GanttView({ requests, onClickRequest }: Props) {
   };
 
   if (items.length === 0) {
-    return <Text type="secondary">沒有設定日期的需求，請在編輯中設定開始日與截止日。</Text>;
+    return <p className="text-sm text-muted-foreground">沒有設定日期的需求，請在編輯中設定開始日與截止日。</p>;
   }
 
   const totalWeeks = granularity === "week" ? totalDays / 7 : 0;
 
   return (
     <>
-      <div style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 16 }}>
-        <Segmented
-          className="seg-white"
+      <div className="mb-2 flex items-center gap-4">
+        <SegmentedControl
           value={granularity}
-          onChange={(val) => setGranularity(val as Granularity)}
+          onChange={setGranularity}
           options={[
-            { value: "day", label: "天" },
-            { value: "week", label: "週" },
+            { value: "day" as Granularity, label: "天" },
+            { value: "week" as Granularity, label: "週" },
           ]}
         />
-        <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
-          <Switch size="small" checked={showUndated} onChange={setShowUndated} />
-          <Text style={{ fontSize: 13 }}>顯示未排期</Text>
+        <label className="flex cursor-pointer items-center gap-1.5">
+          <Switch size="sm" checked={showUndated} onCheckedChange={setShowUndated} />
+          <span className="text-[13px]">顯示未排期</span>
         </label>
       </div>
       <div style={{ overflow: "auto", border: "1px solid #f0f0f0", borderRadius: 8 }}>
@@ -123,11 +122,12 @@ export default function GanttView({ requests, onClickRequest }: Props) {
                   overflow: "hidden",
                 }}
               >
-                <Text
-                  style={{ fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", flex: 1 }}
+                <span
+                  className="truncate text-[13px]"
+                  style={{ flex: 1 }}
                 >
                   #{r.id} {r.title}
-                </Text>
+                </span>
               </div>
             ))}
           </div>
@@ -251,16 +251,8 @@ export default function GanttView({ requests, onClickRequest }: Props) {
                         />
                       );
                     })}
-                  <Tooltip
-                    title={
-                      <div>
-                        <div>#{r.id} {r.title}</div>
-                        <div>{dated ? `${r.start_date} ~ ${r.due_date}` : "未排期"}</div>
-                        <div>{r.requester}</div>
-                      </div>
-                    }
-                  >
-                    <div
+                  <Tooltip>
+                    <TooltipTrigger
                       onClick={() => onClickRequest?.(r.id)}
                       style={{
                         position: "absolute",
@@ -279,18 +271,20 @@ export default function GanttView({ requests, onClickRequest }: Props) {
                         overflow: "hidden",
                       }}
                     >
-                      <Text
-                        style={{
-                          color: dated ? "#fff" : priorityColors[r.priority],
-                          fontSize: 12,
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
+                      <span
+                        className="truncate text-xs"
+                        style={{ color: dated ? "#fff" : priorityColors[r.priority] }}
                       >
                         {r.title}
-                      </Text>
-                    </div>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <div>
+                        <div>#{r.id} {r.title}</div>
+                        <div>{dated ? `${r.start_date} ~ ${r.due_date}` : "未排期"}</div>
+                        <div>{r.requester}</div>
+                      </div>
+                    </TooltipContent>
                   </Tooltip>
                 </div>
               );

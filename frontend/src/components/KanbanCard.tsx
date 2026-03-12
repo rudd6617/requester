@@ -1,12 +1,10 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Card, Typography } from "antd";
+import { Card, CardContent } from "@/components/ui/card";
 import { useRef } from "react";
 import type { KanbanCard as KanbanCardType } from "../types";
 import PriorityBadge from "./PriorityBadge";
 import RiskBadge from "./RiskBadge";
-
-const { Text } = Typography;
 
 interface Props {
   card: KanbanCardType;
@@ -22,7 +20,6 @@ export default function KanbanCard({ card, onEdit }: Props) {
     transform: CSS.Translate.toString(transform),
     transition: transition || "transform 200ms ease",
     opacity: isDragging ? 0.4 : 1,
-    marginBottom: 8,
     cursor: "grab",
   };
 
@@ -30,6 +27,7 @@ export default function KanbanCard({ card, onEdit }: Props) {
     <div
       ref={setNodeRef}
       style={style}
+      className="mb-2"
       {...attributes}
       {...listeners}
       onPointerDown={(e) => {
@@ -44,15 +42,17 @@ export default function KanbanCard({ card, onEdit }: Props) {
         pointerStart.current = null;
       }}
     >
-      <Card size="small">
-        <div style={{ marginBottom: 4 }}>
-          <Text strong>#{card.request.id} {card.request.title}</Text>
-        </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <PriorityBadge priority={card.request.priority} />
-          {card.request.risk && <RiskBadge risk={card.request.risk} />}
-          {card.assignee && <Text type="secondary">{card.assignee}</Text>}
-        </div>
+      <Card>
+        <CardContent className="p-3">
+          <div className="mb-1">
+            <span className="font-semibold">#{card.request.id} {card.request.title}</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <PriorityBadge priority={card.request.priority} />
+            {card.request.risk && <RiskBadge risk={card.request.risk} />}
+            {card.assignee && <span className="text-sm text-muted-foreground">{card.assignee}</span>}
+          </div>
+        </CardContent>
       </Card>
     </div>
   );

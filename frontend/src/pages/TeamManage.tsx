@@ -1,10 +1,20 @@
-import { Button, Checkbox, Form, Input, message, Modal, Popconfirm, Space, Table, Tag, Typography } from "antd";
-import { useState } from "react";
-import { useCreateTeam, useDeleteTeam, useTeams, useUpdateTeam, useUsers, useUpdateTeamMembers } from "../hooks/useRequests";
+import axios from "axios";
+import { type FormEvent, useState } from "react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "../contexts/AuthContext";
+import { useCreateTeam, useDeleteTeam, useTeams, useUpdateTeam, useUsers, useUpdateTeamMembers } from "../hooks/useRequests";
 import type { Team } from "../types";
-
-const { Title } = Typography;
 
 export default function TeamManage() {
   const { isAdmin } = useAuth();
@@ -16,52 +26,46 @@ export default function TeamManage() {
   const updateTeamMembers = useUpdateTeamMembers();
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [form] = Form.useForm();
   const [membersModalTeam, setMembersModalTeam] = useState<Team | null>(null);
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
+  const [formName, setFormName] = useState("");
+  const [formDesc, setFormDesc] = useState("");
 
   const openCreate = () => {
     setEditingTeam(null);
-    form.resetFields();
+    setFormName("");
+    setFormDesc("");
     setIsModalOpen(true);
   };
 
   const openEdit = (team: Team) => {
     setEditingTeam(team);
-    form.setFieldsValue(team);
+    setFormName(team.name);
+    setFormDesc(team.description || "");
     setIsModalOpen(true);
   };
 
-  const handleSubmit = () => {
-    form.validateFields().then((values) => {
-      if (editingTeam) {
-        updateTeam.mutate(
-          { id: editingTeam.id, ...values },
-          {
-            onSuccess: () => {
-              message.success("團隊已更新");
-              setIsModalOpen(false);
-            },
-          }
-        );
-      } else {
-        createTeam.mutate(values, {
-          onSuccess: () => {
-            message.success("團隊已建立");
-            setIsModalOpen(false);
-          },
-        });
-      }
-    });
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!formName.trim()) return;
+    const values = { name: formName, description: formDesc };
+    if (editingTeam) {
+      updateTeam.mutate(
+        { id: editingTeam.id, ...values },
+        { onSuccess: () => { toast.success("團隊已更新"); setIsModalOpen(false); } },
+      );
+    } else {
+      createTeam.mutate(values, {
+        onSuccess: () => { toast.success("團隊已建立"); setIsModalOpen(false); },
+      });
+    }
   };
 
-  const handleDelete = (id: number) => {
-    deleteTeam.mutate(id, {
-      onSuccess: () => {
-        message.success("團隊已刪除");
-        setIsModalOpen(false);
-      },
-      onError: (err: any) => message.error(err?.response?.data?.detail || "刪除失敗"),
+  const handleDelete = () => {
+    if (!editingTeam) return;
+    deleteTeam.mutate(editingTeam.id, {
+      onSuccess: () => { toast.success("團隊已刪除"); setIsModalOpen(false); },
+      onError: (err) => toast.error(axios.isAxiosError(err) ? err.response?.data?.detail : "刪除失敗"),
     });
   };
 
@@ -74,128 +78,139 @@ export default function TeamManage() {
   const handleSaveMembers = async () => {
     if (!membersModalTeam) return;
     await updateTeamMembers.mutateAsync({ teamId: membersModalTeam.id, userIds: selectedUserIds });
-    message.success("成員已更新");
+    toast.success("成員已更新");
     setMembersModalTeam(null);
   };
 
-  const columns = [
-    { title: "ID", dataIndex: "id", width: 60 },
-    { title: "名稱", dataIndex: "name" },
-    { title: "說明", dataIndex: "description" },
-    ...(isAdmin
-      ? [
-          {
-            title: "成員",
-            key: "members",
-            render: (_: unknown, record: Team) => {
-              const memberNames = users?.filter((u) => u.team_ids.includes(record.id)).map((u) => u.display_name) || [];
-              return (
-                <Space size={[0, 4]} wrap>
-                  {memberNames.map((name) => (
-                    <Tag key={name}>{name}</Tag>
-                  ))}
-                </Space>
-              );
-            },
-          },
-          {
-            title: "操作",
-            key: "actions",
-            width: 100,
-            render: (_: unknown, record: Team) => (
-              <Button
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openMembersModal(record);
-                }}
-              >
-                成員管理
-              </Button>
-            ),
-          },
-        ]
-      : []),
-  ];
+  const toggleUserId = (id: number) => {
+    setSelectedUserIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
 
   return (
     <>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          團隊管理
-        </Title>
-        {isAdmin && (
-          <Button type="primary" onClick={openCreate}>
-            新增團隊
-          </Button>
-        )}
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="text-xl font-semibold">團隊管理</h2>
+        {isAdmin && <Button onClick={openCreate}>新增團隊</Button>}
       </div>
-      <Table
-        dataSource={teams}
-        columns={columns}
-        rowKey="id"
-        loading={isLoading}
-        pagination={false}
-        onRow={(record) =>
-          isAdmin
-            ? { onClick: () => openEdit(record), style: { cursor: "pointer" } }
-            : {}
-        }
-      />
 
-      {/* Edit/Create Modal */}
-      <Modal
-        title={editingTeam ? "編輯團隊" : "新增團隊"}
-        open={isModalOpen}
-        onOk={handleSubmit}
-        onCancel={() => setIsModalOpen(false)}
-        confirmLoading={createTeam.isPending || updateTeam.isPending}
-        footer={
-          <div style={{ display: "flex", justifyContent: editingTeam ? "space-between" : "flex-end" }}>
-            {editingTeam && (
-              <Popconfirm title="確定要刪除此團隊？" onConfirm={() => handleDelete(editingTeam.id)}>
-                <Button danger>刪除團隊</Button>
-              </Popconfirm>
-            )}
-            <Space>
-              <Button onClick={() => setIsModalOpen(false)}>取消</Button>
-              <Button type="primary" onClick={handleSubmit} loading={createTeam.isPending || updateTeam.isPending}>
-                確定
-              </Button>
-            </Space>
-          </div>
-        }
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item name="name" label="名稱" rules={[{ required: true, message: "請輸入名稱" }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="description" label="說明">
-            <Input />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* Members Modal */}
-      <Modal
-        title={`${membersModalTeam?.name} - 成員管理`}
-        open={!!membersModalTeam}
-        onOk={handleSaveMembers}
-        onCancel={() => setMembersModalTeam(null)}
-        confirmLoading={updateTeamMembers.isPending}
-      >
-        <Checkbox.Group
-          value={selectedUserIds}
-          onChange={(vals) => setSelectedUserIds(vals as number[])}
-          style={{ display: "flex", flexDirection: "column", gap: 8 }}
-        >
-          {users?.map((u) => (
-            <Checkbox key={u.id} value={u.id}>
-              {u.display_name} ({u.username})
-            </Checkbox>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[60px]">ID</TableHead>
+            <TableHead>名稱</TableHead>
+            <TableHead>說明</TableHead>
+            {isAdmin && <TableHead>成員</TableHead>}
+            {isAdmin && <TableHead className="w-[100px]">操作</TableHead>}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {isLoading ? (
+            <TableRow><TableCell colSpan={isAdmin ? 5 : 3} className="text-center text-muted-foreground">載入中...</TableCell></TableRow>
+          ) : teams?.map((team) => (
+            <TableRow
+              key={team.id}
+              className={isAdmin ? "cursor-pointer" : ""}
+              onClick={() => isAdmin && openEdit(team)}
+            >
+              <TableCell>{team.id}</TableCell>
+              <TableCell>{team.name}</TableCell>
+              <TableCell>{team.description}</TableCell>
+              {isAdmin && (
+                <TableCell>
+                  <div className="flex flex-wrap gap-1">
+                    {users?.filter((u) => u.team_ids.includes(team.id)).map((u) => (
+                      <Badge key={u.id} variant="outline">{u.display_name}</Badge>
+                    ))}
+                  </div>
+                </TableCell>
+              )}
+              {isAdmin && (
+                <TableCell>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => { e.stopPropagation(); openMembersModal(team); }}
+                  >
+                    成員管理
+                  </Button>
+                </TableCell>
+              )}
+            </TableRow>
           ))}
-        </Checkbox.Group>
-      </Modal>
+        </TableBody>
+      </Table>
+
+      {/* Edit/Create Dialog */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingTeam ? "編輯團隊" : "新增團隊"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="team-name">名稱</Label>
+              <Input id="team-name" value={formName} onChange={(e) => setFormName(e.target.value)} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="team-desc">說明</Label>
+              <Input id="team-desc" value={formDesc} onChange={(e) => setFormDesc(e.target.value)} />
+            </div>
+            <DialogFooter className={editingTeam ? "justify-between" : ""}>
+              {editingTeam && (
+                <AlertDialog>
+                  <AlertDialogTrigger>
+                    <Button type="button" variant="destructive">刪除團隊</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>確定要刪除此團隊？</AlertDialogTitle>
+                      <AlertDialogDescription>此操作無法復原。</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>取消</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDelete}>確定刪除</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>取消</Button>
+                <Button type="submit" disabled={createTeam.isPending || updateTeam.isPending}>
+                  確定
+                </Button>
+              </div>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Members Dialog */}
+      <Dialog open={!!membersModalTeam} onOpenChange={(open) => !open && setMembersModalTeam(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{membersModalTeam?.name} - 成員管理</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-2">
+            {users?.map((u) => (
+              <label key={u.id} className="flex items-center gap-2">
+                <Checkbox
+                  checked={selectedUserIds.includes(u.id)}
+                  onCheckedChange={() => toggleUserId(u.id)}
+                />
+                {u.display_name} ({u.username})
+              </label>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMembersModalTeam(null)}>取消</Button>
+            <Button onClick={handleSaveMembers} disabled={updateTeamMembers.isPending}>
+              {updateTeamMembers.isPending ? "儲存中..." : "確定"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

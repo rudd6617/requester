@@ -1,42 +1,45 @@
 import {
-  AppstoreOutlined,
-  FormOutlined,
-  LoginOutlined,
-  LogoutOutlined,
-  ProjectOutlined,
-  TeamOutlined,
-  UserOutlined,
-} from "@ant-design/icons";
-import { Button, Form, Input, Layout as AntLayout, Menu, message, Modal, Typography } from "antd";
-import { useMemo, useState } from "react";
+  ClipboardList,
+  Columns3,
+  LogIn,
+  LogOut,
+  SquarePen,
+  UserCog,
+  Users,
+} from "lucide-react";
+import { type FormEvent, type ReactNode, useMemo, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Toaster } from "@/components/ui/sonner";
 import { useAuth } from "../contexts/AuthContext";
 
-const { Sider, Content } = AntLayout;
-const { Text } = Typography;
+type NavItem = { key: string; icon: ReactNode; label: string };
 
 export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isRD, isAdmin, user, login, logout } = useAuth();
   const [loginOpen, setLoginOpen] = useState(false);
-  const [loginForm] = Form.useForm();
   const [loginLoading, setLoginLoading] = useState(false);
 
   const menuItems = useMemo(() => {
-    const items = [
-      { key: "/requests/new", icon: <FormOutlined />, label: "新需求" },
-      { key: "/request-pool", icon: <AppstoreOutlined />, label: "需求池" },
+    const items: NavItem[] = [
+      { key: "/requests/new", icon: <SquarePen className="size-4" />, label: "新需求" },
+      { key: "/request-pool", icon: <ClipboardList className="size-4" />, label: "需求池" },
     ];
     if (isRD) {
       items.push(
-        { key: "/kanban", icon: <ProjectOutlined />, label: "開發看板" },
-        { key: "/teams", icon: <TeamOutlined />, label: "團隊管理" },
+        { key: "/kanban", icon: <Columns3 className="size-4" />, label: "開發看板" },
+        { key: "/teams", icon: <Users className="size-4" />, label: "團隊管理" },
       );
     }
     if (isAdmin) {
       items.push(
-        { key: "/users", icon: <UserOutlined />, label: "帳號管理" },
+        { key: "/users", icon: <UserCog className="size-4" />, label: "帳號管理" },
       );
     }
     return items;
@@ -46,99 +49,99 @@ export default function Layout() {
     ? "/kanban"
     : location.pathname;
 
-  const handleLogin = async (values: { username: string; password: string }) => {
+  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const username = fd.get("username") as string;
+    const password = fd.get("password") as string;
+    if (!username || !password) return;
     setLoginLoading(true);
     try {
-      await login(values.username, values.password);
-      message.success("登入成功");
+      await login(username, password);
+      toast.success("登入成功");
       setLoginOpen(false);
-      loginForm.resetFields();
     } catch {
-      message.error("帳號或密碼錯誤");
+      toast.error("帳號或密碼錯誤");
     } finally {
       setLoginLoading(false);
     }
   };
 
   return (
-    <AntLayout style={{ minHeight: "100vh" }}>
-      <Sider breakpoint="lg" collapsedWidth={60}>
-        <div
-          style={{
-            height: 48,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "#fff",
-            fontWeight: 700,
-            fontSize: 16,
-          }}
-        >
+    <div className="flex min-h-screen">
+      {/* Sidebar */}
+      <aside className="flex w-52 shrink-0 flex-col bg-slate-900 text-white">
+        <div className="flex h-12 items-center justify-center text-base font-bold">
           Requester
         </div>
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={[selectedKey]}
-          items={menuItems}
-          onClick={({ key }) => navigate(key)}
-        />
-        <div style={{ position: "absolute", bottom: 16, left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center" }}>
+        <nav className="flex-1 space-y-1 px-2">
+          {menuItems.map((item) => (
+            <button
+              key={item.key}
+              onClick={() => navigate(item.key)}
+              className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
+                selectedKey === item.key
+                  ? "bg-white/15 text-white"
+                  : "text-white/65 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              {item.icon}
+              {item.label}
+            </button>
+          ))}
+        </nav>
+        <div className="flex flex-col items-center gap-1 p-4">
           {isRD ? (
             <>
-              <Text style={{ color: "rgba(255,255,255,0.65)", fontSize: 12, marginBottom: 4 }}>
-                {user?.display_name}
-              </Text>
-              <Button
-                type="text"
-                size="small"
-                icon={<LogoutOutlined />}
-                style={{ color: "rgba(255,255,255,0.65)" }}
+              <span className="text-xs text-white/65">{user?.display_name}</span>
+              <button
                 onClick={logout}
+                className="flex items-center gap-1 text-xs text-white/65 hover:text-white"
               >
+                <LogOut className="size-3" />
                 登出
-              </Button>
+              </button>
             </>
           ) : (
-            <Button
-              type="text"
-              size="small"
-              icon={<LoginOutlined />}
-              style={{ color: "rgba(255,255,255,0.65)" }}
+            <button
               onClick={() => setLoginOpen(true)}
+              className="flex items-center gap-1 text-xs text-white/65 hover:text-white"
             >
+              <LogIn className="size-3" />
               登入
-            </Button>
+            </button>
           )}
         </div>
-      </Sider>
-      <AntLayout>
-        <Content style={{ margin: 24 }}>
-          <Outlet />
-        </Content>
-      </AntLayout>
+      </aside>
 
-      <Modal
-        title="登入"
-        open={loginOpen}
-        onCancel={() => setLoginOpen(false)}
-        footer={null}
-        width={360}
-      >
-        <Form form={loginForm} layout="vertical" onFinish={handleLogin}>
-          <Form.Item name="username" label="帳號" rules={[{ required: true, message: "請輸入帳號" }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="password" label="密碼" rules={[{ required: true, message: "請輸入密碼" }]}>
-            <Input.Password />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loginLoading} block>
-              登入
+      {/* Main content */}
+      <main className="flex-1 p-6">
+        <Outlet />
+      </main>
+
+      {/* Login dialog */}
+      <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
+        <DialogContent className="max-w-[360px]">
+          <DialogHeader>
+            <DialogTitle>登入</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">帳號</Label>
+              <Input id="username" name="username" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">密碼</Label>
+              <Input id="password" name="password" type="password" required />
+            </div>
+            <Button type="submit" className="w-full" disabled={loginLoading}>
+              {loginLoading ? "登入中..." : "登入"}
             </Button>
-          </Form.Item>
-        </Form>
-      </Modal>
-    </AntLayout>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Toaster />
+    </div>
   );
 }

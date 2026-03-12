@@ -1,75 +1,77 @@
-import { Button, Form, Input, List, Typography } from "antd";
+import { type FormEvent, useRef } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import dayjs from "dayjs";
-import { message } from "antd";
 import { useAuth } from "../contexts/AuthContext";
 import { useComments, useCreateComment } from "../hooks/useRequests";
-
-const { Text } = Typography;
-const { TextArea } = Input;
 
 export default function CommentSection({ requestId }: { requestId: number }) {
   const { isRD, user } = useAuth();
   const { data: comments, isLoading } = useComments(requestId);
   const createComment = useCreateComment();
-  const [form] = Form.useForm();
+  const formRef = useRef<HTMLFormElement>(null);
 
-  const handleSubmit = () => {
-    form.validateFields().then((values) => {
-      createComment.mutate(
-        {
-          request_id: requestId,
-          content: values.content,
-          author: isRD ? undefined : values.author,
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    createComment.mutate(
+      {
+        request_id: requestId,
+        content: fd.get("content") as string,
+        author: isRD ? undefined : (fd.get("author") as string),
+      },
+      {
+        onSuccess: () => {
+          formRef.current?.reset();
+          toast.success("評論已送出");
         },
-        {
-          onSuccess: () => {
-            form.resetFields();
-            message.success("評論已送出");
-          },
-          onError: () => message.error("送出失敗"),
-        }
-      );
-    });
+        onError: () => toast.error("送出失敗"),
+      },
+    );
   };
 
   return (
     <>
-      <List
-        loading={isLoading}
-        dataSource={comments || []}
-        locale={{ emptyText: "尚無評論" }}
-        renderItem={(item) => (
-          <List.Item>
-            <div style={{ width: "100%" }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <Text strong>{item.author}</Text>
-                <Text type="secondary" style={{ fontSize: 12 }}>
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">載入中...</p>
+      ) : !comments?.length ? (
+        <p className="text-sm text-muted-foreground">尚無評論</p>
+      ) : (
+        <div className="divide-y">
+          {comments.map((item) => (
+            <div key={item.id} className="py-3">
+              <div className="flex justify-between">
+                <span className="font-semibold">{item.author}</span>
+                <span className="text-xs text-muted-foreground">
                   {dayjs(item.created_at).format("YYYY-MM-DD HH:mm")}
-                </Text>
+                </span>
               </div>
-              <div style={{ marginTop: 4, whiteSpace: "pre-wrap" }}>{item.content}</div>
+              <div className="mt-1 whitespace-pre-wrap">{item.content}</div>
             </div>
-          </List.Item>
-        )}
-      />
-      <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
+          ))}
+        </div>
+      )}
+
+      <form ref={formRef} onSubmit={handleSubmit} className="mt-4 space-y-3">
         {!isRD && (
-          <Form.Item name="author" label="姓名" rules={[{ required: true, message: "請輸入姓名" }]}>
-            <Input placeholder="你的名字" />
-          </Form.Item>
+          <div className="space-y-2">
+            <Label htmlFor="author">姓名</Label>
+            <Input id="author" name="author" placeholder="你的名字" required />
+          </div>
         )}
         {isRD && (
-          <Text type="secondary" style={{ display: "block", marginBottom: 8 }}>
+          <p className="text-sm text-muted-foreground">
             以 {user?.display_name} 身分發言
-          </Text>
+          </p>
         )}
-        <Form.Item name="content" rules={[{ required: true, message: "請輸入內容" }]}>
-          <TextArea rows={3} placeholder="輸入評論..." />
-        </Form.Item>
-        <Button type="primary" onClick={handleSubmit} loading={createComment.isPending}>
-          送出評論
+        <Textarea name="content" rows={3} placeholder="輸入評論..." required />
+        <Button type="submit" disabled={createComment.isPending}>
+          {createComment.isPending ? "送出中..." : "送出評論"}
         </Button>
-      </Form>
+      </form>
     </>
   );
 }

@@ -1,91 +1,107 @@
-import { Button, Form, Input, message, Modal, Table, Tag, Typography } from "antd";
-import { useState } from "react";
+import axios from "axios";
+import { type FormEvent, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useRegisterUser, useTeams, useUsers } from "../hooks/useRequests";
-import type { User } from "../types";
-
-const { Title } = Typography;
 
 export default function UserManage() {
   const { data: users, isLoading } = useUsers();
   const { data: teams } = useTeams();
   const registerUser = useRegisterUser();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [form] = Form.useForm();
 
-  const teamNameMap = new Map(teams?.map((t) => [t.id, t.name]) || []);
+  const teamNameMap = useMemo(() => new Map(teams?.map((t) => [t.id, t.name]) || []), [teams]);
 
-  const handleCreate = () => {
-    form.validateFields().then((values) => {
-      registerUser.mutate(values, {
-        onSuccess: () => {
-          message.success("帳號已建立");
-          setIsModalOpen(false);
-          form.resetFields();
-        },
-        onError: (err: any) => message.error(err?.response?.data?.detail || "建立失敗"),
-      });
+  const handleCreate = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const values = {
+      username: fd.get("username") as string,
+      display_name: fd.get("display_name") as string,
+      password: fd.get("password") as string,
+    };
+    registerUser.mutate(values, {
+      onSuccess: () => {
+        toast.success("帳號已建立");
+        setIsModalOpen(false);
+      },
+      onError: (err) => toast.error(axios.isAxiosError(err) ? err.response?.data?.detail : "建立失敗"),
     });
   };
 
-  const columns = [
-    { title: "ID", dataIndex: "id", width: 60 },
-    { title: "帳號", dataIndex: "username" },
-    { title: "顯示名稱", dataIndex: "display_name" },
-    {
-      title: "角色",
-      key: "role",
-      width: 80,
-      render: (_: unknown, record: User) => record.is_admin ? <Tag color="red">Admin</Tag> : <Tag>RD</Tag>,
-    },
-    {
-      title: "歸屬團隊",
-      key: "teams",
-      render: (_: unknown, record: User) => (
-        <>
-          {record.team_ids.map((id) => (
-            <Tag key={id}>{teamNameMap.get(id) ?? id}</Tag>
-          ))}
-        </>
-      ),
-    },
-  ];
-
   return (
     <>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <Title level={3} style={{ margin: 0 }}>
-          帳號管理
-        </Title>
-        <Button type="primary" onClick={() => { form.resetFields(); setIsModalOpen(true); }}>
-          新增帳號
-        </Button>
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="text-xl font-semibold">帳號管理</h2>
+        <Button onClick={() => setIsModalOpen(true)}>新增帳號</Button>
       </div>
-      <Table
-        dataSource={users}
-        columns={columns}
-        rowKey="id"
-        loading={isLoading}
-        pagination={false}
-      />
-      <Modal
-        title="新增帳號"
-        open={isModalOpen}
-        onOk={handleCreate}
-        onCancel={() => setIsModalOpen(false)}
-        confirmLoading={registerUser.isPending}
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item name="username" label="帳號" rules={[{ required: true, message: "請輸入帳號" }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="display_name" label="顯示名稱" rules={[{ required: true, message: "請輸入顯示名稱" }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item name="password" label="密碼" rules={[{ required: true, message: "請輸入密碼" }]}>
-            <Input.Password />
-          </Form.Item>
-        </Form>
-      </Modal>
+
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-[60px]">ID</TableHead>
+            <TableHead>帳號</TableHead>
+            <TableHead>顯示名稱</TableHead>
+            <TableHead className="w-[80px]">角色</TableHead>
+            <TableHead>歸屬團隊</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {isLoading ? (
+            <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">載入中...</TableCell></TableRow>
+          ) : users?.map((u) => (
+            <TableRow key={u.id}>
+              <TableCell>{u.id}</TableCell>
+              <TableCell>{u.username}</TableCell>
+              <TableCell>{u.display_name}</TableCell>
+              <TableCell>
+                {u.is_admin
+                  ? <Badge className="bg-red-100 text-red-700">Admin</Badge>
+                  : <Badge className="bg-gray-100 text-gray-600">RD</Badge>}
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1">
+                  {u.team_ids.map((id) => (
+                    <Badge key={id} variant="outline">{teamNameMap.get(id) ?? id}</Badge>
+                  ))}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新增帳號</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreate} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">帳號</Label>
+              <Input id="username" name="username" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="display_name">顯示名稱</Label>
+              <Input id="display_name" name="display_name" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">密碼</Label>
+              <Input id="password" name="password" type="password" required />
+            </div>
+            <DialogFooter>
+              <Button type="submit" disabled={registerUser.isPending}>
+                {registerUser.isPending ? "建立中..." : "確定"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -1,10 +1,9 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import * as api from "../api/client";
 import type { User } from "../types";
 
 interface AuthContextType {
   user: User | null;
-  loading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   isRD: boolean;
@@ -13,49 +12,48 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  loading: true,
   login: async () => {},
   logout: () => {},
   isRD: false,
   isAdmin: false,
 });
 
+// eslint-disable-next-line react-refresh/only-export-components
+export function useAuth() {
+  return useContext(AuthContext);
+}
+
+const hasToken = () => !!localStorage.getItem("token");
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [resolved, setResolved] = useState(() => !hasToken());
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-    api
-      .fetchMe()
+    if (resolved) return;
+    api.fetchMe()
       .then(setUser)
       .catch(() => localStorage.removeItem("token"))
-      .finally(() => setLoading(false));
-  }, []);
+      .finally(() => setResolved(true));
+  }, [resolved]);
 
-  const login = async (username: string, password: string) => {
+  const login = useCallback(async (username: string, password: string) => {
     const { access_token } = await api.login({ username, password });
     localStorage.setItem("token", access_token);
     const me = await api.fetchMe();
     setUser(me);
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem("token");
     setUser(null);
-  };
+  }, []);
+
+  if (!resolved) return null;
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isRD: !!user, isAdmin: user?.is_admin ?? false }}>
+    <AuthContext.Provider value={{ user, login, logout, isRD: !!user, isAdmin: user?.is_admin ?? false }}>
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  return useContext(AuthContext);
 }

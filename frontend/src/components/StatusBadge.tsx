@@ -1,12 +1,12 @@
-import { Tag } from "antd";
+import { Badge } from "@/components/ui/badge";
 import type { Status } from "../types";
 
-const colorMap: Record<Status, string> = {
-  new: "blue",
-  assigned: "cyan",
-  done: "green",
-  cancelled: "red",
-  archived: "default",
+const styleMap: Record<Status, string> = {
+  new: "bg-blue-100 text-blue-700",
+  assigned: "bg-cyan-100 text-cyan-700",
+  done: "bg-green-100 text-green-700",
+  cancelled: "bg-red-100 text-red-700",
+  archived: "bg-gray-100 text-gray-600",
 };
 
 const labelMap: Record<Status, string> = {
@@ -18,5 +18,5 @@ const labelMap: Record<Status, string> = {
 };
 
 export default function StatusBadge({ status }: { status: Status }) {
-  return <Tag color={colorMap[status]}>{labelMap[status]}</Tag>;
+  return <Badge className={styleMap[status]}>{labelMap[status]}</Badge>;
 }
