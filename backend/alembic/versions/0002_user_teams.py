@@ -34,6 +34,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("idx_user_teams_team", table_name="user_teams")
     op.drop_table("user_teams")
     op.drop_column("users", "is_admin")
