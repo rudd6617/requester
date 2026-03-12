@@ -5,6 +5,7 @@ import {
   LogoutOutlined,
   ProjectOutlined,
   TeamOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import { Button, Form, Input, Layout as AntLayout, Menu, message, Modal, Typography } from "antd";
 import { useMemo, useState } from "react";
@@ -17,7 +18,7 @@ const { Text } = Typography;
 export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isRD, user, login, logout } = useAuth();
+  const { isRD, isAdmin, user, login, logout } = useAuth();
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginForm] = Form.useForm();
   const [loginLoading, setLoginLoading] = useState(false);
@@ -33,8 +34,13 @@ export default function Layout() {
         { key: "/teams", icon: <TeamOutlined />, label: "團隊管理" },
       );
     }
+    if (isAdmin) {
+      items.push(
+        { key: "/users", icon: <UserOutlined />, label: "帳號管理" },
+      );
+    }
     return items;
-  }, [isRD]);
+  }, [isRD, isAdmin]);
 
   const selectedKey = location.pathname.startsWith("/kanban")
     ? "/kanban"

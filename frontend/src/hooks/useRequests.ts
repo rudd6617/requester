@@ -150,6 +150,14 @@ export function useUsers(enabled = true) {
   return useQuery({ queryKey: ["users"], queryFn: api.fetchUsers, enabled });
 }
 
+export function useRegisterUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.registerUser,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
 export function useUpdateTeamMembers() {
   const qc = useQueryClient();
   return useMutation({

@@ -5,6 +5,7 @@ import Backlog from "./pages/Backlog";
 import KanbanBoard from "./pages/KanbanBoard";
 import RequestForm from "./pages/RequestForm";
 import TeamManage from "./pages/TeamManage";
+import UserManage from "./pages/UserManage";
 
 function RequireAuth() {
   const { isRD, loading } = useAuth();
@@ -23,6 +24,7 @@ export default function App() {
             <Route element={<RequireAuth />}>
               <Route path="/kanban" element={<KanbanBoard />} />
               <Route path="/teams" element={<TeamManage />} />
+              <Route path="/users" element={<UserManage />} />
             </Route>
             <Route path="*" element={<Navigate to="/request-pool" replace />} />
           </Route>

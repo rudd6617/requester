@@ -96,5 +96,8 @@ export const createComment = (data: {
 
 export const fetchUsers = () => api.get<User[]>("/auth/users").then((r) => r.data);
 
+export const registerUser = (data: { username: string; display_name: string; password: string }) =>
+  api.post<User>("/auth/register", data).then((r) => r.data);
+
 export const updateTeamMembers = (teamId: number, userIds: number[]) =>
   api.patch(`/teams/${teamId}/members`, { user_ids: userIds });

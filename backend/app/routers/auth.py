@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=UserOut, status_code=201)
-def register(body: UserCreate, db: Session = Depends(get_db)):
+def register(body: UserCreate, db: Session = Depends(get_db), _: User = Depends(require_admin)):
     if db.query(User).filter(User.username == body.username).first():
         raise HTTPException(400, "Username already exists")
     user = User(
