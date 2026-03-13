@@ -158,6 +158,23 @@ export function useRegisterUser() {
   });
 }
 
+export function useUpdateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: number; display_name?: string; password?: string; is_admin?: boolean }) =>
+      api.updateUser(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
+export function useDeleteUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.deleteUser,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["users"] }),
+  });
+}
+
 export function useUpdateTeamMembers() {
   const qc = useQueryClient();
   return useMutation({

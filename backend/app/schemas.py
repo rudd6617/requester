@@ -122,6 +122,12 @@ class UserCreate(BaseModel):
     password: str
 
 
+class UserUpdate(BaseModel):
+    display_name: Optional[str] = None
+    password: Optional[str] = None
+    is_admin: Optional[bool] = None
+
+
 class LoginRequest(BaseModel):
     username: str
     password: str

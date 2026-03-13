@@ -99,5 +99,10 @@ export const fetchUsers = () => api.get<User[]>("/auth/users").then((r) => r.dat
 export const registerUser = (data: { username: string; display_name: string; password: string }) =>
   api.post<User>("/auth/register", data).then((r) => r.data);
 
+export const updateUser = (id: number, data: { display_name?: string; password?: string; is_admin?: boolean }) =>
+  api.patch<User>(`/auth/users/${id}`, data).then((r) => r.data);
+
+export const deleteUser = (id: number) => api.delete(`/auth/users/${id}`);
+
 export const updateTeamMembers = (teamId: number, userIds: number[]) =>
   api.patch(`/teams/${teamId}/members`, { user_ids: userIds });
